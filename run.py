@@ -18,7 +18,7 @@ d_base = os.getcwd()
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("method",type=str,choices=['orig','gd','alm'],help="select the method")
+parser.add_argument("method",type=str,choices=['orig','gd','alm','sec'],help="select the method")
 parser.add_argument('output',type=str,help='specify the name of the directory to save results')
 parser.add_argument('-dataset',type=str,choices=['synWu'],default='synWu',help='select the dataset')
 parser.add_argument("-minbeta",type=float,help='the minimum beta to sweep',default=1.0)
@@ -37,9 +37,9 @@ argdict = vars(args)
 
 # fixed parameters
 _sys_parms = {
-	'backtracking_alpha': 0.25,
-	'backtracking_beta' : 0.1,
-	'max_iter'          : 9999,
+	'backtracking_alpha': 0.45,
+	'backtracking_beta' : 0.5,
+	'max_iter'          : 50000,
 	'conv_thres'        : args.thres,
 	'penalty_coeff'     : args.penalty,
 	'breg_omega'        : args.omega,

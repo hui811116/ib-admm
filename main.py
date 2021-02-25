@@ -16,9 +16,9 @@ gbl_pxy = gbl_pycx*gbl_px[:,None].T
 
 parm_qlevel = gbl_pxy.shape[1]
 parm_conv_thres = 1e-5
-parm_max_iter = 100000
+parm_max_iter = 50000
 beta_range = np.logspace(0,1.0,16)
-num_avg = 25
+num_avg = 5
 result_dict = {'beta':beta_range,'methods':['orig','gd','alm_breg'],
 			   'prob_xy':gbl_pxy,'max_iter':parm_max_iter,'avg_num':num_avg}
 # gradient descent parameters
@@ -27,15 +27,13 @@ _bk_beta = 0.5
 _parm_grad_norm_thres = parm_conv_thres
 
 # ALM parameters
-_parm_c_init = 2.0
-_parm_omega_init = 64.0
-_global_step_size_init = 0.8
-
+_parm_c_init = 4.0
+_parm_omega_init = 4.0
 
 # for debugging
 d_debug = False
-dbg_beta = 6.88
-dbg_max_iter = 100000
+dbg_beta = 1.88
+dbg_max_iter = 50000
 
 def ib_sol_log(pxy,beta,ib_dict,**kwargs):
 	pzcx = ib_dict['prob_zcx']
