@@ -57,13 +57,15 @@ print('Method:{}'.format(args.method))
 def runSim(ibalg,betarange,pxy,nrun,**kwargs):
 	result_all = []
 	for bidx,beta in enumerate(betarange):
-		print('beta:{:.4f}'.format(beta))
+		print('beta:{:<50.4f}'.format(beta))
 		algargs = {'beta':beta,'qlevel':pxy.shape[0],**kwargs,}
 		ut.checkAlgArgs(**algargs)
 		tmp_result = []
 		for it in range(nrun):
+			print('\rCurrent progress: {:4.2f}% ({:>5}/{:>5} iterations)'.format(100*it/nrun,it,nrun),end='')
 			ib_res = ibalg(**{'pxy':pxy,**algargs})
 			tmp_result.append(ib_res)
+		print('{:<50}'.format(''),end='\r')
 		result_all.append({'beta':beta,'result':tmp_result})
 	return result_all
 # main algorithm
