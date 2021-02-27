@@ -62,10 +62,10 @@ def runSim(ibalg,betarange,pxy,nrun,**kwargs):
 		ut.checkAlgArgs(**algargs)
 		tmp_result = []
 		for it in range(nrun):
-			print('\rCurrent progress: {:4.2f}% ({:>5}/{:>5} iterations)'.format(100*it/nrun,it,nrun),end='')
+			print('\rCurrent progress: {:4.2f}% ({:>5}/{:>5} iterations)'.format(100*it/nrun,it,nrun),end='',flush=True)
 			ib_res = ibalg(**{'pxy':pxy,**algargs})
 			tmp_result.append(ib_res)
-		print('{:<50}'.format(''),end='\r')
+		print('{:<50}'.format(''),end='\r',flush=True)
 		result_all.append({'beta':beta,'result':tmp_result})
 	return result_all
 # main algorithm
