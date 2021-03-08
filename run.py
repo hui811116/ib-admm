@@ -38,7 +38,7 @@ argdict = vars(args)
 # fixed parameters
 _sys_parms = {
 	'backtracking_alpha': 0.45,
-	'backtracking_beta' : 0.5,
+	'backtracking_beta' : 0.1,
 	'max_iter'          : 25000,
 	'conv_thres'        : args.thres,
 	'penalty_coeff'     : args.penalty,

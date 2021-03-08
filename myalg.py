@@ -301,7 +301,7 @@ def ib_alm_sec(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 		'''
 		# Use first order method for faster computation
 		(pdir_pzcx, lambda_pzcx) = pzcx_grad_obj(pzcx,pz,_parm_mu_z) # first order lambda
-		ss_pzcx = gd.validStepSize(pzcx,-pdir_pzcx,1.0,_bk_beta)
+		ss_pzcx = gd.validStepSize(pzcx,-pdir_pzcx,0.1,_bk_beta) # the starting constant matters!!
 		if ss_pzcx == 0:
 			break
 		arm_ss_pzcx = gd.armijoStepSize(pzcx,-pdir_pzcx,ss_pzcx,_bk_beta,1e-4,pzcx_func_obj,pzcx_grad_obj,
