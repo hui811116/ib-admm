@@ -17,8 +17,10 @@ import pprint
 d_base = os.getcwd()
 
 
+available_algs = ['orig','gd','alm','sec','dev']
+
 parser = argparse.ArgumentParser()
-parser.add_argument("method",type=str,choices=['orig','gd','alm','sec'],help="select the method")
+parser.add_argument("method",type=str,choices=available_algs,help="select the method")
 parser.add_argument('output',type=str,help='specify the name of the directory to save results')
 parser.add_argument('-dataset',type=str,choices=['synWu'],default='synWu',help='select the dataset')
 parser.add_argument("-minbeta",type=float,help='the minimum beta to sweep',default=1.0)
@@ -28,6 +30,8 @@ parser.add_argument('-ntime',type=int,help='run how many times per beta',default
 parser.add_argument('-penalty',type=float,help='penalty coefficient',default=4.0)
 parser.add_argument('-omega',type=float,help='Bregman Regularization coefficient',default=0.0)
 parser.add_argument('-thres',type=float,help='convergence threshold',default=1e-5)
+parser.add_argument('-sinit',type=float,help='Initial step size for line search',default=1.0)
+parser.add_argument('-sscale',type=float,help='Step size line search scaling',default=0.1)
 parser.add_argument('-seed',type=int,help='Random seed for reproduction',default=123)
 parser.add_argument("-v",'--verbose',help='printing the log and parameters along the execution',action='count',default=0)
 
@@ -37,8 +41,9 @@ argdict = vars(args)
 
 # fixed parameters
 _sys_parms = {
-	'backtracking_alpha': 0.45,
-	'backtracking_beta' : 0.1,
+	#'backtracking_alpha': 0.45,
+	'backtracking_beta' : args.sscale,
+	'line_search_init'  : args.sinit,
 	'max_iter'          : 25000,
 	'conv_thres'        : args.thres,
 	'penalty_coeff'     : args.penalty,
@@ -56,6 +61,7 @@ print('Method:{}'.format(args.method))
 
 def runSim(ibalg,betarange,pxy,nrun,**kwargs):
 	result_all = []
+	time_start = time.time()
 	for bidx,beta in enumerate(betarange):
 		print('beta:{:<50.4f}'.format(beta))
 		algargs = {'beta':beta,'qlevel':pxy.shape[0],**kwargs,}
@@ -67,6 +73,8 @@ def runSim(ibalg,betarange,pxy,nrun,**kwargs):
 			tmp_result.append(ib_res)
 		print('{:<50}'.format(''),end='\r',flush=True)
 		result_all.append({'beta':beta,'result':tmp_result})
+	print(' '*100+'\r',end='',flush=True)
+	print('time elapsed: {:>16.8f} seconds'.format(time.time()-time_start))
 	return result_all
 # main algorithm
 result_all = runSim(d_alg,d_beta_range,d_pxy_info['pxy'],args.ntime,**_sys_parms)

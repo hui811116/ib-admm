@@ -20,7 +20,7 @@ def getPzGradObj(beta,px, pen_c,b_omega,use_breg=False):
 		return (raw_grad-first_lambda,first_lambda)
 	def grad_obj_breg(pz,pzcx,mu_z,pz_last):
 		pen_z = pz - pzcx@px
-		raw_grad = (beta-1)*(np.log(pz)+1)+mu_z+pen_c*pen_z+b_omega*(np.log(pz/pz_last))
+		raw_grad = (beta-1)*(np.log(pz)+1)+mu_z+pen_c*pen_z+b_omega*(np.log(pz/pz_last)+1)
 		first_lambda = np.mean(raw_grad)
 		return (raw_grad - first_lambda, first_lambda)
 	if use_breg:
@@ -71,6 +71,29 @@ def getPzcxGradObj(beta,px,pxcy,pycx,pen_c):
 		first_lambda = np.mean(raw_grad,axis=0)
 		return (raw_grad - first_lambda , first_lambda)
 	return grad_obj
+
+# --------------------------------------------------
+#                      DEV
+# --------------------------------------------------
+def devPzcxFuncObj(beta,px,py,pxcy,pycx,pen_c,b_o2):
+	def val_obj(pzcx,pz,mu_z,pzcx_delay):
+		pen_z = pz-pzcx@px
+		pzcy = pzcx@pxcy
+		return np.sum(pzcx*np.log(pzcx)*px[None,:])-beta*np.sum(pzcy*np.log(pzcy)*py[None,:])\
+				+np.sum(mu_z*pen_z)+0.5*pen_c*(np.sum(np.fabs(pen_z))**2)+b_o2*np.sum(pzcx*np.log(pzcx/pzcx_delay)*px[None,:])
+	return val_obj
+		
+def devPzcxGradObj(beta,px,pxcy,pycx,pen_c,b_o2):
+	def grad_obj(pzcx,pz,mu_z,pzcx_delay):
+		pen_z = pz-pzcx@px
+		pzcy = pzcx@pxcy
+		raw_grad = (np.log(pzcx)+1-beta-beta*np.transpose(pycx.T@np.log(pzcy.T))\
+					-mu_z[:,None]-pen_c*pen_z[:,None]+ b_o2*(np.log(pzcx)-np.log(pzcx_delay)+1)   )*px[None,:]
+		first_lambda = np.mean(raw_grad,axis=0)
+		return (raw_grad - first_lambda , first_lambda)
+	return grad_obj
+
+# --------------------------------------------------
 
 def getPzcxNewtonObj(beta,px,pxcy,pycx,pen_c):
 	def hess_obj(pzcx,pz,mu_z):

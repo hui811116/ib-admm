@@ -40,5 +40,7 @@ def genOutName(**kwargs):
 		return 'alm_{}_result'.format(kwargs['dataset'])
 	elif method == 'sec':
 		return 'sec_{}_result'.format(kwargs['dataset'])
+	elif method == 'dev':
+		return 'dev_{}_result'.format(kwargs['dataset'])
 	else:
 		sys.exit('undefined method {}'.format(method))

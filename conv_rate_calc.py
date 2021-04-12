@@ -33,6 +33,8 @@ for item in os.listdir(os.path.join(d_base,args[1])):
 		method_text = 'IB-grad'
 	elif method == 'alm':
 		method_text = 'ALM;c={};$\\omega$={}'.format(int(tmp_args['penalty']),int(tmp_args['omega']))
+	else:
+		method_text = str(method)
 	tmp_conv = {'method':method_text,'beta':tmp_beta_range,'conv':np.zeros((len(tmp_beta_range),))}
 	
 	for bidx, item_beta in enumerate(tmp_data):

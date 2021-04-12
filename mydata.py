@@ -16,3 +16,9 @@ def synICLR2020_WU():
 	gbl_pxy = gbl_pycx*gbl_px[:,None].T
 	return {'pxy':gbl_pxy,'nx':3,'ny':3}
 
+'''
+def randDate():
+	gbl_pycx = np.array([[],[],[],[]])
+	return {'pxy':gbl_pxy,'nx':4,'ny':3}
+'''
+
