@@ -53,7 +53,7 @@ print('Method:{}'.format(args.method))
 
 d_pxy = d_pxy_info['pxy']
 for ni in range(args.ntime):
-	algargs = {'beta':d_beta,'qlevel':d_pxy.shape[0],**_sys_parms,}
+	algargs = {'beta':d_beta,'qlevel':d_pxy.shape[1],**_sys_parms,}
 	ut.checkAlgArgs(**algargs)
 	ib_res = d_alg(**{'pxy':d_pxy,**algargs})
 	print('{nt:4d} trial:beta={beta:>6.2f}, IXZ={IXZ:<8.4f}, IYZ={IYZ:<8.4f}, niter={niter:<5d}, converge={valid:<5}'.format(

@@ -13,7 +13,7 @@ def datasetSelect(name,**kwargs):
 def synICLR2020_WU():
 	gbl_pycx = np.array([[0.7,0.3,0.075],[0.15,0.50,0.025],[0.15,0.20,0.90]])
 	gbl_px = np.ones(3,)/3
-	gbl_pxy = gbl_pycx*gbl_px[:,None].T
+	gbl_pxy = (gbl_pycx*gbl_px[:,None]).T
 	return {'pxy':gbl_pxy,'nx':3,'ny':3}
 
 '''

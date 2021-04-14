@@ -462,6 +462,7 @@ def admmib_bayat(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	_parm_c = kwargs['penalty_coeff']
 	_bk_beta = kwargs['backtracking_beta']
 	_ls_init = kwargs['line_search_init']
+	rs = RandomState(MT19937(SeedSequence(kwargs['rand_seed'])))
 	
 	(nx,ny) = pxy.shape
 	nz = qlevel
@@ -472,12 +473,12 @@ def admmib_bayat(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	pxcy = pxy*(1./py)[None,:]
 	# on IB, the initialization matters
 	# use random start
-	sel_idx = np.random.permutation(nx)
-	#sel_idx = rs.permutation(nx)
+	#sel_idx = np.random.permutation(nx)
+	sel_idx = rs.permutation(nx)
 	pz = px[sel_idx[:qlevel]]
 	pz /= np.sum(pz)
-	#pzcx = rs.rand(nz,nx)
-	pzcx = np.random.rand(nz,nx)
+	pzcx = rs.rand(nz,nx)
+	#pzcx = np.random.rand(nz,nx)
 	pzcx = pzcx * (1./np.sum(pzcx,axis=0))[None,:]
 	pzcx[:nz,:] = pycx
 	pzcy = pzcx@pxcy
@@ -519,22 +520,20 @@ def admmib_bayat(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 		'''
 		(mean_grad_pzcx,_) = bayat_pzcx_grad(pzcx,pzcy,pz,_parm_mu_z,_parm_mu_zy)
 		mean_grad_pzcx /= beta
-		#mean_grad_pzcx = raw_grad_pzcx - np.mean(raw_grad_pzcx)
 		ss_pzcx = gd.validStepSize(pzcx,-mean_grad_pzcx,_ls_init,_bk_beta)
 		if ss_pzcx == 0:
 			isvalid = False
 			break
-		# prob,update,alpha,ss_beta,c1,obj_func,obj_grad,**kwargs
 		arm_ss_pzcx = gd.armijoStepSize(pzcx,-mean_grad_pzcx,ss_pzcx,_bk_beta,1e-4,bayat_pzcx_obj,bayat_pzcx_grad,
 									**{'pzcy':pzcy,'pz':pz,'mu_z':_parm_mu_z,'mu_zy':_parm_mu_zy},)
 		if arm_ss_pzcx == 0:
 			arm_ss_pzcx = ss_pzcx
+		#arm_ss_pzcx = ss_pzcx
 		new_pzcx = pzcx - arm_ss_pzcx * mean_grad_pzcx
 		# step2: pzcy
 		'''
 		raw_grad_pzcy = -beta*(np.log(pzcy)+1)*py[None,:]+_parm_mu_zy+_parm_c*(pzcy-new_pzcx@pxcy/(np.sum(new_pzcx@pxcy,axis=0)[None,:]))
 		raw_grad_pzcy/= beta
-		mean_grad_pzcy = raw_grad_pzcy - np.mean(raw_grad_pzcy)
 		'''
 		(mean_grad_pzcy,_) = bayat_pzcy_grad(pzcy,new_pzcx,_parm_mu_zy)
 		mean_grad_pzcy /= beta
@@ -546,6 +545,7 @@ def admmib_bayat(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 											**{'pzcx':new_pzcx,'mu_zy':_parm_mu_zy})
 		if arm_ss_pzcy == 0:
 			arm_ss_pzcy = ss_pzcy
+		#arm_ss_pzcy = ss_pzcy
 		new_pzcy = pzcy - arm_ss_pzcy * mean_grad_pzcy
 		
 		# step3: pz
@@ -554,7 +554,6 @@ def admmib_bayat(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 		'''
 		(mean_grad_pz,_) = bayat_pz_grad(pz,new_pzcx,_parm_mu_z)
 		mean_grad_pz/= beta
-		#mean_grad_pz = raw_grad_pz - np.mean(raw_grad_pz)
 		ss_pz = gd.validStepSize(pz,-mean_grad_pz,_ls_init,_bk_beta)
 		if ss_pz  == 0:
 			isvalid =False
@@ -563,6 +562,7 @@ def admmib_bayat(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 										**{'pzcx':new_pzcx,'mu_z':_parm_mu_z})
 		if arm_ss_pz == 0:
 			arm_ss_pz = ss_pz
+		#arm_ss_pz = ss_pz
 		new_pz = pz - arm_ss_pz * mean_grad_pz
 		# update
 		pz = copy.copy(new_pz)

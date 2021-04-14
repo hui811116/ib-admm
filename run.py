@@ -65,7 +65,7 @@ def runSim(ibalg,betarange,pxy,nrun,**kwargs):
 	time_start = time.time()
 	for bidx,beta in enumerate(betarange):
 		print('beta:{:<50.4f}'.format(beta))
-		algargs = {'beta':beta,'qlevel':pxy.shape[0],**kwargs,}
+		algargs = {'beta':beta,'qlevel':pxy.shape[1],**kwargs,}
 		ut.checkAlgArgs(**algargs)
 		tmp_result = []
 		for it in range(nrun):
