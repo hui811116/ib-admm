@@ -17,7 +17,7 @@ import pprint
 d_base = os.getcwd()
 
 
-available_algs = ['orig','gd','alm','sec','dev']
+available_algs = ['orig','gd','alm','sec','dev','bayat']
 
 parser = argparse.ArgumentParser()
 parser.add_argument("method",type=str,choices=available_algs,help="select the method")
@@ -30,7 +30,7 @@ parser.add_argument('-ntime',type=int,help='run how many times per beta',default
 parser.add_argument('-penalty',type=float,help='penalty coefficient',default=4.0)
 parser.add_argument('-omega',type=float,help='Bregman Regularization coefficient',default=0.0)
 parser.add_argument('-thres',type=float,help='convergence threshold',default=1e-5)
-parser.add_argument('-sinit',type=float,help='Initial step size for line search',default=1.0)
+parser.add_argument('-sinit',type=float,help='Initial step size for line search',default=0.05)
 parser.add_argument('-sscale',type=float,help='Step size line search scaling',default=0.1)
 parser.add_argument('-seed',type=int,help='Random seed for reproduction',default=123)
 parser.add_argument("-v",'--verbose',help='printing the log and parameters along the execution',action='count',default=0)
@@ -44,10 +44,11 @@ _sys_parms = {
 	#'backtracking_alpha': 0.45,
 	'backtracking_beta' : args.sscale,
 	'line_search_init'  : args.sinit,
-	'max_iter'          : 25000,
+	'max_iter'          : 100000,
 	'conv_thres'        : args.thres,
 	'penalty_coeff'     : args.penalty,
 	'breg_omega'        : args.omega,
+	'rand_seed'         : args.seed,
 }
 
 if args.verbose:

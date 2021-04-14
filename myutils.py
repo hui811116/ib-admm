@@ -42,5 +42,7 @@ def genOutName(**kwargs):
 		return 'sec_{}_result'.format(kwargs['dataset'])
 	elif method == 'dev':
 		return 'dev_{}_result'.format(kwargs['dataset'])
+	elif method == 'bayat':
+		return 'bayat_{}_result'.format(kwargs['dataset'])
 	else:
 		sys.exit('undefined method {}'.format(method))

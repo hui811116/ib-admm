@@ -117,3 +117,54 @@ def getPzcxNewtonObj(beta,px,pxcy,pycx,pen_c):
 			tmp_dir[iz,:] -= tmp_hess_inv[iz,...]@sum_hess_inv
 		return (tmp_dir,sum_hess_inv)
 	return hess_obj
+
+
+'''
+---------------------------------------------
+Compare method: Bayat's ADMM-IB
+
+F. Bayat and S. Wei, "Information Bottleneck Problem Revisited,
+" 2019 57th Annual Allerton Conference on Communication, Control, 
+and Computing (Allerton), Monticello, IL, USA, 2019, 
+pp. 40-47, doi: 10.1109/ALLERTON.2019.8919752.
+---------------------------------------------
+'''
+
+
+def getBayatGradObjPzcx(beta,px,py,pxcy,pycx,pen_c):
+	def val_obj(pzcx,pzcy,pz,mu_z,mu_zy):
+		ky = np.sum(pzcx@pxcy,axis=0) # dim=ny
+		tmp_term =  (ky[None,:]-pzcx@pxcy)/((ky**2)[None,:])  # dim = nz * nx
+		grad = (np.log(pzcx)+1)*px[None,:]-pen_c*(pz - np.sum(pzcx*px[None,:],axis=1)+mu_z/pen_c)[:,None]*px[None,:] \
+						-pen_c*(tmp_term)*(pzcy-pzcx@pxcy/ky[None,:]+mu_zy/pen_c)@ pxcy.T
+		mean_grad = np.mean(grad,axis=0)
+		return (grad-mean_grad, mean_grad)
+	return val_obj
+def getBayatGradObjPzcy(beta,px,py,pxcy,pycx,pen_c):
+	def val_obj(pzcy,pzcx,mu_zy):
+		grad =-beta*(np.log(pzcy)+1)*py[None,:]+mu_zy+pen_c*(pzcy-pzcx@pxcy/(np.sum(pzcx@pxcy,axis=0)[None,:]))
+		mean_grad = np.mean(grad,axis=0)
+		return (grad-mean_grad,mean_grad)
+	return val_obj
+def getBayatGradObjPz(beta,px,py,pxcy,pycx,pen_c):
+	def val_obj(pz,pzcx,mu_z):
+		grad = (beta-1)*(np.log(pz)+1)+mu_z+pen_c*(pz-np.sum(pzcx*px[None,:],axis=1))
+		mean_grad = np.mean(grad)
+		return (grad-mean_grad,mean_grad)
+	return val_obj
+
+def getBayatFuncObjPz(beta,px,py,pxcy,pycx,pen_c):
+	def val_obj(pz,pzcx,mu_z):
+		return (beta-1)*(np.sum(pz*np.log(pz)))+pen_c/2*np.sum((pz-np.sum(pzcx*px[None,:],axis=0)+mu_z/pen_c)**2)
+	return val_obj
+def getBayatFuncObjPzcx(beta,px,py,pxcy,pycx,pen_c):
+	def val_obj(pzcx,pz,pzcy,mu_z,mu_zy):
+		return np.sum(pzcx*px[None,:]*np.log(pzcx))+pen_c/2*np.sum((pz-np.sum(pzcx*px[None,:],axis=0)+mu_z/pen_c)**2)\
+				+pen_c/2*np.sum( (pzcy-pzcx@pxcy/np.sum(pzcx@pxcy,axis=0)[None,:]+mu_zy/pen_c)**2)
+	return val_obj
+
+def getBayatFuncObjPzcy(beta,px,py,pxcy,pycx,pen_c):
+	def val_obj(pzcy,pzcx,mu_zy):
+		return -beta*np.sum(pzcy*py[None,:]*np.log(pzcy))\
+				+pen_c/2*np.sum((pzcy-pzcx@pxcy/np.sum(pzcx@pxcy,axis=0)[None,:]+mu_zy/pen_c)**2)
+	return val_obj
