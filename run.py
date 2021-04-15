@@ -25,14 +25,15 @@ parser.add_argument('output',type=str,help='specify the name of the directory to
 parser.add_argument('-dataset',type=str,choices=['synWu'],default='synWu',help='select the dataset')
 parser.add_argument("-minbeta",type=float,help='the minimum beta to sweep',default=1.0)
 parser.add_argument("-maxbeta",type=float,help='the maximum beta to sweep',default=10.0)
-parser.add_argument('-numbeta',type=int,help='the geometric spacing between beta_min and beta_max',default=16)
-parser.add_argument('-ntime',type=int,help='run how many times per beta',default=25)
-parser.add_argument('-penalty',type=float,help='penalty coefficient',default=4.0)
+parser.add_argument('-numbeta',type=int,help='the geometric spacing between beta_min and beta_max',default=20)
+parser.add_argument('-ntime',type=int,help='run how many times per beta',default=10)
+parser.add_argument('-penalty',type=float,help='penalty coefficient',default=8.0)
 parser.add_argument('-omega',type=float,help='Bregman Regularization coefficient',default=0.0)
 parser.add_argument('-thres',type=float,help='convergence threshold',default=1e-5)
-parser.add_argument('-sinit',type=float,help='Initial step size for line search',default=0.05)
-parser.add_argument('-sscale',type=float,help='Step size line search scaling',default=0.1)
-parser.add_argument('-seed',type=int,help='Random seed for reproduction',default=123)
+parser.add_argument('-sinit',type=float,help='Initial step size for line search',default=0.125)
+parser.add_argument('-sscale',type=float,help='Step size line search scaling',default=0.25)
+parser.add_argument('-seed',type=int,help='Random seed for reproduction',default=98765543)
+parser.add_argument('-maxiter',type=int,help='The maximum number of iteration per run',default=10000)
 parser.add_argument("-v",'--verbose',help='printing the log and parameters along the execution',action='count',default=0)
 
 
@@ -44,7 +45,7 @@ _sys_parms = {
 	#'backtracking_alpha': 0.45,
 	'backtracking_beta' : args.sscale,
 	'line_search_init'  : args.sinit,
-	'max_iter'          : 100000,
+	'max_iter'          : args.maxiter,
 	'conv_thres'        : args.thres,
 	'penalty_coeff'     : args.penalty,
 	'breg_omega'        : args.omega,

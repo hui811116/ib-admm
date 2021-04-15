@@ -184,7 +184,7 @@ def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	# DEBUG
 	# FIXME: tuning the bregman regularization for pzcx, make it a parameter once complete debugging
 	debug_breg_o2 = 0.0
-	ss_precision=1e-2
+	#ss_precision=1e-2
 	# Initial result, this will not improve rate of convergence...
 	
 	(nx,ny) = pxy.shape
@@ -275,9 +275,7 @@ def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	miyz = ut.calc_mi(pzcy,py)
 	pen_check = 0.5*np.sum(np.fabs(pz-np.sum(pzcx*px[None,:],axis=1) ))
 	isvalid = (pen_check<=conv_thres)
-	#if not isvalid:
-	#	mixz = 0
-	#	miyz = 0
+	
 	return {'prob_zcx':pzcx,'prob_z':pz,'niter':itcnt,'IXZ':mixz,'IYZ':miyz,'valid':isvalid}
 
 
@@ -352,7 +350,7 @@ def ib_gd(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 			pz = np.sum(pzcx*px[None,:],axis=1)
 			pzcy = pzcx@pxcy
 			pycz = np.transpose((1./pz)[:,None]*pzcy*py[None,:])
-			pycz = pycz * (1./np.sum(pycz,axis=0))[None,:]
+			pycz = pycz * (1./np.sum(pycz,axis=0))[None,:]  # must be done for valid probability constraint
 			
 
 	# monitoring the MIXZ, MIYZ
@@ -360,9 +358,7 @@ def ib_gd(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	miyz = ut.calc_mi(pycz,pz)
 	pen_check = 0.5*np.sum(np.fabs(pz-pzcx@px))
 	flag_valid = (pen_check<=conv_thres)
-	#if not flag_valid:
-	#	mixz = 0
-	#	miyz = 0
+	
 	return {'prob_zcx':pzcx,'prob_ycz':pycz,'niter':itcnt,'valid':flag_valid,'IXZ':mixz,'IYZ':miyz}
 # ----------------------------------------------------
 # DEVELOPING
@@ -462,9 +458,7 @@ def ib_alm_sec(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	miyz = ut.calc_mi(pzcy,py)
 	pen_check = 0.5*np.sum(np.fabs(pz-pzcx@px))
 	isvalid = (pen_check<=conv_thres)
-	#if not isvalid:
-	#	mixz = 0
-	#	miyz = 0
+	
 	return {'prob_zcx':pzcx,'prob_z':pz,'niter':itcnt,'IXZ':mixz,'IYZ':miyz,'valid':isvalid}
 
 def admmib_bayat(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
@@ -594,9 +588,7 @@ def admmib_bayat(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	pen_check = 0.5*np.sum(np.fabs(pz-pzcx@px))
 	pen_check_pzcy = 0.5*np.sum(np.sum(np.fabs(pzcy-(pzcx@pxcy)/(np.sum(pzcx@pxcy,axis=0)[None,:])),axis=0) )
 	isvalid = (pen_check<=conv_thres and pen_check_pzcy<=conv_thres)
-	#if not isvalid:
-	#	mixz = 0
-	#	miyz = 0
+	
 
 	return {'prob_zcx':pzcx,'prob_z':pz,'prob_zcy':pzcy,
 			'niter':itcnt,'IXZ':mixz,'IYZ':miyz,'valid':isvalid}
