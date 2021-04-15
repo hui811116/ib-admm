@@ -22,7 +22,7 @@ available_algs = ['orig','gd','alm','sec','dev','bayat']
 parser = argparse.ArgumentParser()
 parser.add_argument("method",type=str,choices=available_algs,help="select the method")
 parser.add_argument('output',type=str,help='specify the name of the directory to save results')
-parser.add_argument('-dataset',type=str,choices=['synWu'],default='synWu',help='select the dataset')
+parser.add_argument('-dataset',type=str,choices=['synWu','synMy'],default='synWu',help='select the dataset')
 parser.add_argument("-minbeta",type=float,help='the minimum beta to sweep',default=1.0)
 parser.add_argument("-maxbeta",type=float,help='the maximum beta to sweep',default=10.0)
 parser.add_argument('-numbeta',type=int,help='the geometric spacing between beta_min and beta_max',default=20)

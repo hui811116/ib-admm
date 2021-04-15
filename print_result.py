@@ -5,11 +5,13 @@ import sys
 import argparse
 import matplotlib.pyplot as plt
 import pprint
+import mydata as dt
 d_base = os.getcwd()
 
 parser = argparse.ArgumentParser()
 parser.add_argument("filedir",type=str,help='specify the directory to be converted')
 parser.add_argument('-output',type=str,help='specify the output file name',default='converted')
+parser.add_argument('-draw',type=str,choices=["ib","mi","mixz","miyz","niter",""],default="")
 
 args = parser.parse_args()
 filedir = os.path.join(d_base,args.filedir)
@@ -31,6 +33,16 @@ pprint.pprint(arguments)
 print('-'*50)
 print('Results:')
 print('-'*50)
+
+d_pxy_info = dt.datasetSelect(arguments['dataset'])
+# compute the H(Y) and I(X;Y)
+d_pxy = d_pxy_info['pxy']
+py = np.sum(d_pxy,axis=0)
+px = np.sum(d_pxy,axis=1)
+enthy = np.sum(-py*np.log(py)) # nats, convert later
+mixy = np.sum(d_pxy*np.log(d_pxy/py[None,:]/px[:,None]))
+
+
 res_hdr = ['IXZ','IYZ','niter','valid']
 collect_all = []
 for bidx, item_beta in enumerate(results):
@@ -73,3 +85,34 @@ ax3.scatter(npresult[:,0],npresult[:,3])
 ax3.set_yscale('log')
 plt.tight_layout()
 plt.show()
+
+
+
+'''
+# if some specific plot is needed
+'''
+
+if args.draw == "ib":
+	titletex = r'Information Plane, $|Z|={:}$, thres={:.3e}'.format(d_pxy.shape[1],arguments['thres'])
+	fig = plt.figure()
+	plt.grid()
+	plt.title(r"Inforamtion Plane, thres={:}, $|Z|=3$".format(1e-5),fontsize=18)
+	plt.xlabel(r"$I(X;Z)$ (bits)",fontsize=16)
+	plt.ylabel(r"$I(Y;Z)$ (bits)",fontsize=16)
+	plt.xticks(fontsize=14)
+	plt.yticks(fontsize=14)
+	plt.scatter(npresult[:,1]*np.log2(np.exp(1)),npresult[:,2]*np.log2(np.exp(1)),label="BA")
+	plt.tight_layout()
+
+	plt.axhline(y=enthy*np.log2(np.exp(1)),xmin=0,xmax=np.amax(npresult[:,1]*np.log2(np.exp(1))),
+				linewidth=2,color='b',linestyle="--",label=r"$H(Y)\geq I(Y;Z)$")
+	plt.axline((0,0),(np.amax(npresult[:,2]*np.log2(np.exp(1))),np.amax(npresult[:,2]*np.log2(np.exp(1)))),
+		linewidth=2,color='m',linestyle=":",label=r"$I(X;Y)\geq I(Y;Z)$")
+	plt.legend(fontsize=12, loc='center left')
+	plt.show()
+#elif args.draw == "mixz":
+#elif args.draw == "miyz":
+#elif args.draw == "mi":
+#elif args.draw == "niter":
+else:
+	sys.exit()
