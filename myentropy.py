@@ -77,15 +77,15 @@ def getPzcxGradObj(beta,px,pxcy,pycx,pen_c):
 # --------------------------------------------------
 def devPzcxFuncObj(beta,px,py,pxcy,pycx,pen_c,b_o2):
 	def val_obj(pzcx,pz,mu_z,pzcx_delay):
-		pen_z = pz-pzcx@px
+		pen_z = pz-np.sum(pzcx*px[None,:],axis=1)
 		pzcy = pzcx@pxcy
 		return np.sum(pzcx*np.log(pzcx)*px[None,:])-beta*np.sum(pzcy*np.log(pzcy)*py[None,:])\
-				+np.sum(mu_z*pen_z)+0.5*pen_c*(np.sum(np.fabs(pen_z))**2)+b_o2*np.sum(pzcx*np.log(pzcx/pzcx_delay)*px[None,:])
+				+np.sum(mu_z*pen_z)+0.5*pen_c*(np.sum(pen_z**2))+b_o2*np.sum(pzcx*np.log(pzcx/pzcx_delay)*px[None,:])
 	return val_obj
 		
 def devPzcxGradObj(beta,px,pxcy,pycx,pen_c,b_o2):
 	def grad_obj(pzcx,pz,mu_z,pzcx_delay):
-		pen_z = pz-pzcx@px
+		pen_z = pz-np.sum(pzcx*px[None,:],axis=1)
 		pzcy = pzcx@pxcy
 		raw_grad = (np.log(pzcx)+1-beta-beta*np.transpose(pycx.T@np.log(pzcy.T))\
 					-mu_z[:,None]-pen_c*pen_z[:,None]+ b_o2*(np.log(pzcx)-np.log(pzcx_delay)+1)   )*px[None,:]
@@ -118,6 +118,23 @@ def getPzcxNewtonObj(beta,px,pxcy,pycx,pen_c):
 		return (tmp_dir,sum_hess_inv)
 	return hess_obj
 
+
+'''
+Oringial IB in gradient descent
+
+'''
+def getLibGDGradObj(beta,px,py,pxcy,pycx):
+	def grad_obj(pzcx,pz,pycz):
+		nabla_iyz = np.transpose(np.log((1/py)[:,None]*pycz))@pycx
+		grad = (np.log((1./pz)[:,None]*pzcx)-beta*nabla_iyz )*px[None,:]
+		mean_grad = np.mean(grad,axis=0)
+		return (grad-mean_grad,mean_grad)
+	return grad_obj
+def getLibGDFuncObj(beta,px,py,pxcy,pycx):
+	def val_obj(pzcx,pz,pycz):
+		return np.sum(pzcx*px[None,:]*np.log(pzcx/pz[:,None]))\
+				-beta*np.sum(pycz*pz[None,:]*np.log(pycz/py[:,None]))
+	return val_obj
 
 '''
 ---------------------------------------------

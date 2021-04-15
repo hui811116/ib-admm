@@ -26,6 +26,7 @@ def selectAlg(method,**kwargs):
 	return None
 
 def ib_orig(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
+	rs = RandomState(MT19937(SeedSequence(kwargs['rand_seed'])))
 	(nx,ny) = pxy.shape
 	nz = qlevel
 	px = np.sum(pxy,axis=1)
@@ -34,10 +35,12 @@ def ib_orig(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	pxcy = pxy@np.diag(1./py)
 	# on IB, the initialization matters
 	# use random start (*This is the one used for v2)
-	sel_idx = np.random.permutation(nx)
+	#sel_idx = np.random.permutation(nx)
+	sel_idx = rs.permutation(nx)
 	pz = px[sel_idx[:qlevel]]
 	pz /= np.sum(pz)
-	pzcx = np.random.rand(nz,nx)
+	#pzcx = np.random.rand(nz,nx)
+	pzcx = rs.rand(nz,nx)
 	pzcx = pzcx * (1./np.sum(pzcx,axis=0))[None,:]
 	pzcx[:nz,:] = pycx
 	pycz = pycx@ np.transpose(1/pz[:,None]*pzcx*px[None,:])
@@ -224,7 +227,7 @@ def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 		# calculate update norm
 		# unit step size for every update
 		#ss_pzcx = gd.validStepSize(pzcx,-mean_grad_pzcx, ss_pzcx,_bk_beta)
-		ss_pzcx = gd.validStepSize(pzcx,-mean_grad_pzcx, 0.1,_bk_beta)
+		ss_pzcx = gd.validStepSize(pzcx,-mean_grad_pzcx, _ls_init,_bk_beta)
 		if ss_pzcx == 0:
 			break
 		#arm_ss_pzcx = gd.goldSecStepSize(pzcx,-mean_grad_pzcx,ss_pzcx,ss_precision,pzcx_func_obj,
@@ -241,7 +244,7 @@ def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 		(mean_grad_pz,_) = pz_grad_obj(pz,new_pzcx,_parm_mu_z,pz_delay)
 		mean_grad_pz/=beta
 		#ss_pz = gd.validStepSize(pz,-mean_grad_pz,ss_pz,_bk_beta)
-		ss_pz = gd.validStepSize(pz,-mean_grad_pz,0.1,_bk_beta)
+		ss_pz = gd.validStepSize(pz,-mean_grad_pz,_ls_init,_bk_beta)
 		# update probabilities
 		if ss_pz == 0:
 			break
@@ -272,9 +275,9 @@ def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	miyz = ut.calc_mi(pzcy,py)
 	pen_check = 0.5*np.sum(np.fabs(pz-np.sum(pzcx*px[None,:],axis=1) ))
 	isvalid = (pen_check<=conv_thres)
-	if not isvalid:
-		mixz = 0
-		miyz = 0
+	#if not isvalid:
+	#	mixz = 0
+	#	miyz = 0
 	return {'prob_zcx':pzcx,'prob_z':pz,'niter':itcnt,'IXZ':mixz,'IYZ':miyz,'valid':isvalid}
 
 
@@ -282,6 +285,7 @@ def ib_gd(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	# system
 	_bk_beta = kwargs['backtracking_beta']
 	_ls_init = kwargs['line_search_init']
+	rs = RandomState(MT19937(SeedSequence(kwargs['rand_seed'])))
 	(nx,ny) = pxy.shape
 	nz = qlevel
 	px = np.sum(pxy,axis=1)
@@ -290,50 +294,54 @@ def ib_gd(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	pxcy = pxy*(1./py)[None,:]
 	# on IB, the initialization matters
 	# use random start
-	#pzcx = np.random.rand(nz,nx)
-	#pzcx = (1/np.sum(pzcx,axis=0))[None,:]*pzcx
 	'''
 	pz = pzcx @ px
 	pzcy = pzcx @ pxcy
 	pycz = np.transpose((1/pz)[:,None]*pzcy*py[None,:])
 	'''
-	sel_idx = np.random.permutation(nx)
+	#sel_idx = np.random.permutation(nx)
+	sel_idx = rs.permutation(nx)
 	pycz = pycx[:,sel_idx[:qlevel]]
 	pz = px[sel_idx[:qlevel]]
 	pz /= np.sum(pz)
 	
-	pzcx = np.random.rand(nz,nx)
+	#pzcx = np.random.rand(nz,nx)
+	pzcx = rs.rand(nz,nx)
 	pzcx = pzcx * (1./np.sum(pzcx,axis=0))[None,:]
 	pzcx[:nz,:] = pycx
 	pycz = pycx@ np.transpose(1/pz[:,None]*pzcx*px[None,:])
-
+	pycz = pycz * (1./np.sum(pycz,axis=0))[None,:]
 	# naive method
-	#_step_size = 1.0
+	grad_obj = ent.getLibGDGradObj(beta,px,py,pxcy,pycx)
+	func_obj = ent.getLibGDFuncObj(beta,px,py,pxcy,pycx)
 	# ready to start
 	itcnt = 0
 	# gradient descent control
-	#tmp_step = _step_size
-	while (itcnt < max_iter) and flag_valid:
+	while (itcnt < max_iter):
+		itcnt+=1
 		# compute ib kernel
-		nabla_iyz = np.transpose(np.log((1./py)[:,None]*pycz))@ pycx
-		grad = (np.log((1./pz)[:,None]*pzcx)-beta*nabla_iyz )*px[None,:]
+		(mean_grad,_) = grad_obj(pzcx,pz,pycz)
+		mean_grad/=beta
 		# NOTE: 
 		#     if all pzcx are non zero, then the ineq. eq. conditions gives
 		#     lambda_i = -mean(grad)
-		if np.any(grad != grad):
+		if np.any(mean_grad != mean_grad):
 			break
-		zm_grad = grad - np.mean(grad,axis=0)
-		tmp_step = gd.validStepSize(pzcx,-grad,_ls_init,_bk_beta)
+		tmp_step = gd.validStepSize(pzcx,-mean_grad,_ls_init,_bk_beta)
 		if tmp_step == 0:
 			break
-		new_pzcx = pzcx - tmp_step * zm_grad
+		arm_step = gd.armijoStepSize(pzcx,-mean_grad,tmp_step,_bk_beta,1e-4,func_obj,grad_obj,
+									**{'pz':pz,'pycz':pycz})
+		if arm_step == 0:
+			arm_step = tmp_step
+		new_pzcx = pzcx - arm_step * mean_grad
+		
 		# theoretically, lambda >= 0. sometimes this is violated
 		# ignore at the start of the gradient descent
-		
 		# in order to make sure the implementation is correct,
 		# you should use naive method to calculate the steepest descent coefficient
-		itcnt+=1
-		dtv = 0.5 * np.sum(np.fabs(pz-new_pzcx@px))
+		
+		dtv = 0.5 * np.sum(np.fabs(pz-np.sum(new_pzcx*px[None,:],axis=1)))
 		if dtv< conv_thres:
 			# termination condition reached
 			# making the comparison at the same criterion
@@ -341,18 +349,20 @@ def ib_gd(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 		else:
 			# updating step size
 			pzcx = new_pzcx
-			pz = pzcx @ px
+			pz = np.sum(pzcx*px[None,:],axis=1)
 			pzcy = pzcx@pxcy
 			pycz = np.transpose((1./pz)[:,None]*pzcy*py[None,:])
+			pycz = pycz * (1./np.sum(pycz,axis=0))[None,:]
+			
 
 	# monitoring the MIXZ, MIYZ
 	mixz = ut.calc_mi(pzcx,px)
 	miyz = ut.calc_mi(pycz,pz)
 	pen_check = 0.5*np.sum(np.fabs(pz-pzcx@px))
 	flag_valid = (pen_check<=conv_thres)
-	if not flag_valid:
-		mixz = 0
-		miyz = 0
+	#if not flag_valid:
+	#	mixz = 0
+	#	miyz = 0
 	return {'prob_zcx':pzcx,'prob_ycz':pycz,'niter':itcnt,'valid':flag_valid,'IXZ':mixz,'IYZ':miyz}
 # ----------------------------------------------------
 # DEVELOPING
@@ -452,9 +462,9 @@ def ib_alm_sec(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	miyz = ut.calc_mi(pzcy,py)
 	pen_check = 0.5*np.sum(np.fabs(pz-pzcx@px))
 	isvalid = (pen_check<=conv_thres)
-	if not isvalid:
-		mixz = 0
-		miyz = 0
+	#if not isvalid:
+	#	mixz = 0
+	#	miyz = 0
 	return {'prob_zcx':pzcx,'prob_z':pz,'niter':itcnt,'IXZ':mixz,'IYZ':miyz,'valid':isvalid}
 
 def admmib_bayat(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
@@ -524,11 +534,11 @@ def admmib_bayat(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 		if ss_pzcx == 0:
 			isvalid = False
 			break
-		arm_ss_pzcx = gd.armijoStepSize(pzcx,-mean_grad_pzcx,ss_pzcx,_bk_beta,1e-4,bayat_pzcx_obj,bayat_pzcx_grad,
-									**{'pzcy':pzcy,'pz':pz,'mu_z':_parm_mu_z,'mu_zy':_parm_mu_zy},)
-		if arm_ss_pzcx == 0:
-			arm_ss_pzcx = ss_pzcx
-		#arm_ss_pzcx = ss_pzcx
+		#arm_ss_pzcx = gd.armijoStepSize(pzcx,-mean_grad_pzcx,ss_pzcx,_bk_beta,1e-4,bayat_pzcx_obj,bayat_pzcx_grad,
+		#							**{'pzcy':pzcy,'pz':pz,'mu_z':_parm_mu_z,'mu_zy':_parm_mu_zy},)
+		#if arm_ss_pzcx == 0:
+		#	arm_ss_pzcx = ss_pzcx
+		arm_ss_pzcx = ss_pzcx
 		new_pzcx = pzcx - arm_ss_pzcx * mean_grad_pzcx
 		# step2: pzcy
 		'''
@@ -541,11 +551,11 @@ def admmib_bayat(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 		if ss_pzcy == 0:
 			isvalid =False
 			break
-		arm_ss_pzcy = gd.armijoStepSize(pzcy,-mean_grad_pzcy,ss_pzcy,_bk_beta,1e-4,bayat_pzcy_obj,bayat_pzcy_grad,
-											**{'pzcx':new_pzcx,'mu_zy':_parm_mu_zy})
-		if arm_ss_pzcy == 0:
-			arm_ss_pzcy = ss_pzcy
-		#arm_ss_pzcy = ss_pzcy
+		#arm_ss_pzcy = gd.armijoStepSize(pzcy,-mean_grad_pzcy,ss_pzcy,_bk_beta,1e-4,bayat_pzcy_obj,bayat_pzcy_grad,
+		#									**{'pzcx':new_pzcx,'mu_zy':_parm_mu_zy})
+		#if arm_ss_pzcy == 0:
+		#	arm_ss_pzcy = ss_pzcy
+		arm_ss_pzcy = ss_pzcy
 		new_pzcy = pzcy - arm_ss_pzcy * mean_grad_pzcy
 		
 		# step3: pz
@@ -558,11 +568,11 @@ def admmib_bayat(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 		if ss_pz  == 0:
 			isvalid =False
 			break
-		arm_ss_pz = gd.armijoStepSize(pz,-mean_grad_pz,ss_pz,_bk_beta,1e-4,bayat_pz_obj,bayat_pz_grad,
-										**{'pzcx':new_pzcx,'mu_z':_parm_mu_z})
-		if arm_ss_pz == 0:
-			arm_ss_pz = ss_pz
-		#arm_ss_pz = ss_pz
+		#arm_ss_pz = gd.armijoStepSize(pz,-mean_grad_pz,ss_pz,_bk_beta,1e-4,bayat_pz_obj,bayat_pz_grad,
+		#								**{'pzcx':new_pzcx,'mu_z':_parm_mu_z})
+		#if arm_ss_pz == 0:
+		#	arm_ss_pz = ss_pz
+		arm_ss_pz = ss_pz
 		new_pz = pz - arm_ss_pz * mean_grad_pz
 		# update
 		pz = copy.copy(new_pz)
@@ -584,9 +594,9 @@ def admmib_bayat(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	pen_check = 0.5*np.sum(np.fabs(pz-pzcx@px))
 	pen_check_pzcy = 0.5*np.sum(np.sum(np.fabs(pzcy-(pzcx@pxcy)/(np.sum(pzcx@pxcy,axis=0)[None,:])),axis=0) )
 	isvalid = (pen_check<=conv_thres and pen_check_pzcy<=conv_thres)
-	if not isvalid:
-		mixz = 0
-		miyz = 0
+	#if not isvalid:
+	#	mixz = 0
+	#	miyz = 0
 
 	return {'prob_zcx':pzcx,'prob_z':pz,'prob_zcy':pzcy,
 			'niter':itcnt,'IXZ':mixz,'IYZ':miyz,'valid':isvalid}
