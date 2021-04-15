@@ -92,9 +92,10 @@ def ib_alm_breg(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	pz /= np.sum(pz)
 	pz_delay = copy.copy(pz)
 	pzcx = np.random.rand(nz,nx)
-	pzcx = pzcx * (1./np.sum(pzcx,axis=0))[None,:]
+	pzcx = pzcx / np.sum(pzcx,axis=0)[None,:]
 	pzcx[:nz,:] = pycx
 	pzcy = pzcx@pxcy
+	pzcy = pzcy / np.sum(pzcy,axis=0)[None,:]
 	# ready to start
 	itcnt = 0
 	# gradient descent control
@@ -184,7 +185,6 @@ def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	# DEBUG
 	# FIXME: tuning the bregman regularization for pzcx, make it a parameter once complete debugging
 	debug_breg_o2 = 0.0
-	#ss_precision=1e-2
 	# Initial result, this will not improve rate of convergence...
 	
 	(nx,ny) = pxy.shape
@@ -230,8 +230,6 @@ def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 		ss_pzcx = gd.validStepSize(pzcx,-mean_grad_pzcx, _ls_init,_bk_beta)
 		if ss_pzcx == 0:
 			break
-		#arm_ss_pzcx = gd.goldSecStepSize(pzcx,-mean_grad_pzcx,ss_pzcx,ss_precision,pzcx_func_obj,
-		#							**{'pz':pz,'mu_z':_parm_mu_z,'pzcx_delay':pzcx_delay})
 		arm_ss_pzcx = gd.armijoStepSize(pzcx,-mean_grad_pzcx,ss_pzcx,_bk_beta,1e-4,pzcx_func_obj,pzcx_grad_obj,
 									**{'pz':pz,'mu_z':_parm_mu_z,'pzcx_delay':pzcx_delay},)
 		if arm_ss_pzcx==0:
@@ -250,8 +248,7 @@ def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 			break
 		arm_ss_pz = gd.armijoStepSize(pz,-mean_grad_pz,ss_pz,_bk_beta,1e-4,pz_func_obj,pz_grad_obj,
 									**{'pzcx':new_pzcx,'mu_z':_parm_mu_z,'pz_last':pz_delay})
-		#arm_ss_pz  = gd.goldSecStepSize(pz,-mean_grad_pz,ss_pz,ss_precision,pz_func_obj,
-		#							**{'pzcx':new_pzcx,'mu_z':_parm_mu_z,'pz_last':pz_delay})
+		
 		if arm_ss_pz == 0:
 			arm_ss_pz = ss_pz
 		new_pz   = pz   - arm_ss_pz * mean_grad_pz
@@ -264,6 +261,9 @@ def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 		# probability update
 		pzcx_delay = copy.copy(pzcx)
 		pzcy = new_pzcx @ pxcy
+		# FIXME debugging
+		#pzcy = pzcy/ np.sum(pzcy,axis=0)[:,None]
+
 		pzcx = new_pzcx
 		pz_delay = copy.copy(pz)
 		pz = new_pz
@@ -305,10 +305,10 @@ def ib_gd(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	
 	#pzcx = np.random.rand(nz,nx)
 	pzcx = rs.rand(nz,nx)
-	pzcx = pzcx * (1./np.sum(pzcx,axis=0))[None,:]
+	pzcx = pzcx /np.sum(pzcx,axis=0)[None,:]
 	pzcx[:nz,:] = pycx
 	pycz = pycx@ np.transpose(1/pz[:,None]*pzcx*px[None,:])
-	pycz = pycz * (1./np.sum(pycz,axis=0))[None,:]
+	pycz = pycz /np.sum(pycz,axis=0)[None,:]
 	# naive method
 	grad_obj = ent.getLibGDGradObj(beta,px,py,pxcy,pycx)
 	func_obj = ent.getLibGDFuncObj(beta,px,py,pxcy,pycx)
@@ -442,7 +442,7 @@ def ib_alm_sec(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 		# update pz
 		new_pz = pz - pdir_pz * arm_ss_pz
 		# update lagrange multiplier approxmators
-		new_penz = new_pz - new_pzcx@px
+		new_penz = new_pz - np.sum(new_pzcx*px[None,:],axis=1)
 		_parm_mu_z += _parm_c*new_penz
 		# update probabilities
 		pzcx = new_pzcx
@@ -486,6 +486,7 @@ def admmib_bayat(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	pzcx = pzcx * (1./np.sum(pzcx,axis=0))[None,:]
 	pzcx[:nz,:] = pycx
 	pzcy = pzcx@pxcy
+	pzcy = pzcy * (1./np.sum(pzcy,axis=0))[None,:]
 	'''
 	# use random start instead
 	pz = np.random.rand(nz)
@@ -516,57 +517,45 @@ def admmib_bayat(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 		# the order of step is another thing to tune...
 		
 		# step1: pzcx
-		'''
-		ky = np.sum(pzcx@pxcy,axis=0) # dim=ny
-		tmp_term =  (ky[None,:]-pzcx@pxcy)/((ky**2)[None,:])  # dim = nz * nx
-		raw_grad_pzcx = (np.log(pzcx)+1)*px[None,:]-_parm_c*(pz-np.sum(pzcx*px[None,:],axis=1)+_parm_mu_z/_parm_c)[:,None]*px[None,:] \
-						-_parm_c*(tmp_term)*(pzcy-pzcx@pxcy/ky[None,:]+_parm_mu_zy/_parm_c)@ pxcy.T
-		'''
 		(mean_grad_pzcx,_) = bayat_pzcx_grad(pzcx,pzcy,pz,_parm_mu_z,_parm_mu_zy)
 		mean_grad_pzcx /= beta
 		ss_pzcx = gd.validStepSize(pzcx,-mean_grad_pzcx,_ls_init,_bk_beta)
 		if ss_pzcx == 0:
 			isvalid = False
 			break
-		#arm_ss_pzcx = gd.armijoStepSize(pzcx,-mean_grad_pzcx,ss_pzcx,_bk_beta,1e-4,bayat_pzcx_obj,bayat_pzcx_grad,
-		#							**{'pzcy':pzcy,'pz':pz,'mu_z':_parm_mu_z,'mu_zy':_parm_mu_zy},)
-		#if arm_ss_pzcx == 0:
-		#	arm_ss_pzcx = ss_pzcx
-		arm_ss_pzcx = ss_pzcx
+		arm_ss_pzcx = gd.armijoStepSize(pzcx,-mean_grad_pzcx,ss_pzcx,_bk_beta,1e-4,bayat_pzcx_obj,bayat_pzcx_grad,
+									**{'pzcy':pzcy,'pz':pz,'mu_z':_parm_mu_z,'mu_zy':_parm_mu_zy},)
+		if arm_ss_pzcx == 0:
+			arm_ss_pzcx = ss_pzcx
+		#arm_ss_pzcx = ss_pzcx
 		new_pzcx = pzcx - arm_ss_pzcx * mean_grad_pzcx
-		# step2: pzcy
-		'''
-		raw_grad_pzcy = -beta*(np.log(pzcy)+1)*py[None,:]+_parm_mu_zy+_parm_c*(pzcy-new_pzcx@pxcy/(np.sum(new_pzcx@pxcy,axis=0)[None,:]))
-		raw_grad_pzcy/= beta
-		'''
+		# step2: pzcy		
 		(mean_grad_pzcy,_) = bayat_pzcy_grad(pzcy,new_pzcx,_parm_mu_zy)
 		mean_grad_pzcy /= beta
 		ss_pzcy = gd.validStepSize(pzcy,-mean_grad_pzcy,_ls_init,_bk_beta)
 		if ss_pzcy == 0:
 			isvalid =False
 			break
-		#arm_ss_pzcy = gd.armijoStepSize(pzcy,-mean_grad_pzcy,ss_pzcy,_bk_beta,1e-4,bayat_pzcy_obj,bayat_pzcy_grad,
-		#									**{'pzcx':new_pzcx,'mu_zy':_parm_mu_zy})
-		#if arm_ss_pzcy == 0:
-		#	arm_ss_pzcy = ss_pzcy
-		arm_ss_pzcy = ss_pzcy
+		arm_ss_pzcy = gd.armijoStepSize(pzcy,-mean_grad_pzcy,ss_pzcy,_bk_beta,1e-4,bayat_pzcy_obj,bayat_pzcy_grad,
+											**{'pzcx':new_pzcx,'mu_zy':_parm_mu_zy})
+		if arm_ss_pzcy == 0:
+			arm_ss_pzcy = ss_pzcy
+		#arm_ss_pzcy = ss_pzcy
 		new_pzcy = pzcy - arm_ss_pzcy * mean_grad_pzcy
 		
 		# step3: pz
-		'''
-		raw_grad_pz = (beta-1)*(np.log(pz)+1)+_parm_mu_z+_parm_c*(pz-np.sum(pzcx*px[None,:],axis=1))
-		'''
+		
 		(mean_grad_pz,_) = bayat_pz_grad(pz,new_pzcx,_parm_mu_z)
 		mean_grad_pz/= beta
 		ss_pz = gd.validStepSize(pz,-mean_grad_pz,_ls_init,_bk_beta)
 		if ss_pz  == 0:
 			isvalid =False
 			break
-		#arm_ss_pz = gd.armijoStepSize(pz,-mean_grad_pz,ss_pz,_bk_beta,1e-4,bayat_pz_obj,bayat_pz_grad,
-		#								**{'pzcx':new_pzcx,'mu_z':_parm_mu_z})
-		#if arm_ss_pz == 0:
-		#	arm_ss_pz = ss_pz
-		arm_ss_pz = ss_pz
+		arm_ss_pz = gd.armijoStepSize(pz,-mean_grad_pz,ss_pz,_bk_beta,1e-4,bayat_pz_obj,bayat_pz_grad,
+										**{'pzcx':new_pzcx,'mu_z':_parm_mu_z})
+		if arm_ss_pz == 0:
+			arm_ss_pz = ss_pz
+		#arm_ss_pz = ss_pz
 		new_pz = pz - arm_ss_pz * mean_grad_pz
 		# update
 		pz = copy.copy(new_pz)
@@ -579,15 +568,15 @@ def admmib_bayat(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 		_parm_mu_zy += _parm_c*(penalty_pzcy)
 		# termination condition?
 		dtv_z = 0.5* (np.sum(np.fabs(penalty_pz)))
-		dtv_zy = 0.5* (np.sum(np.sum(np.fabs(penalty_pzcy),axis=0)))
-		if dtv_z < conv_thres and dtv_zy < conv_thres:
+		dtv_zy = 0.5* (np.sum(np.fabs(penalty_pzcy),axis=0)) # a y dimensional vector
+		if dtv_z < conv_thres and np.all(dtv_zy < conv_thres):
 			isvalid = True
 			break
 	mixz = ut.calc_mi(pzcx,px)
 	miyz = ut.calc_mi(pzcy,py)
 	pen_check = 0.5*np.sum(np.fabs(pz-pzcx@px))
-	pen_check_pzcy = 0.5*np.sum(np.sum(np.fabs(pzcy-(pzcx@pxcy)/(np.sum(pzcx@pxcy,axis=0)[None,:])),axis=0) )
-	isvalid = (pen_check<=conv_thres and pen_check_pzcy<=conv_thres)
+	pen_check_pzcy = 0.5*(np.sum(np.fabs(pzcy-(pzcx@pxcy)/(np.sum(pzcx@pxcy,axis=0)[None,:])),axis=0))
+	isvalid = (pen_check<=conv_thres and np.all(pen_check_pzcy<=conv_thres))
 	
 
 	return {'prob_zcx':pzcx,'prob_z':pz,'prob_zcy':pzcy,
