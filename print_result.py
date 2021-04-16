@@ -41,7 +41,7 @@ py = np.sum(d_pxy,axis=0)
 px = np.sum(d_pxy,axis=1)
 enthy = np.sum(-py*np.log(py)) # nats, convert later
 mixy = np.sum(d_pxy*np.log(d_pxy/py[None,:]/px[:,None]))
-
+print('Estimated H(Y):{:.6f}, I(X:Y):{:.6f}'.format(enthy,mixy))
 
 res_hdr = ['IXZ','IYZ','niter','valid']
 collect_all = []
@@ -76,7 +76,9 @@ ax1.set_ylabel(r'$I(Y;Z)$')
 ax2.grid()
 ax2.set_xlabel(r'$\beta$')
 ax2.set_ylabel(r'$I(Y;Z), I(X;Z)$')
-ax2.scatter(npresult[:,0],npresult[:,2])
+ax2.scatter(npresult[:,0],npresult[:,1],label=r"$I(X;Z)$")
+ax2.scatter(npresult[:,0],npresult[:,2],label=r"$I(Y;Z)$")
+ax2.legend()
 # SUBFIGURE3
 ax3.grid()
 ax3.set_xlabel(r'$\beta$')
@@ -93,26 +95,65 @@ plt.show()
 '''
 
 if args.draw == "ib":
-	titletex = r'Information Plane, $|Z|={:}$, thres={:.3e}'.format(d_pxy.shape[1],arguments['thres'])
+	titletex = r'Information Plane, $|Z|={:}$, thres={:.2e}'.format(d_pxy.shape[1],arguments['thres'])
 	fig = plt.figure()
 	plt.grid()
-	plt.title(r"Inforamtion Plane, thres={:}, $|Z|=3$".format(1e-5),fontsize=18)
-	plt.xlabel(r"$I(X;Z)$ (bits)",fontsize=16)
-	plt.ylabel(r"$I(Y;Z)$ (bits)",fontsize=16)
+	plt.title(titletex,fontsize=18)
+	plt.xlabel(r"$I(Z;X)$ (bits)",fontsize=16)
+	plt.ylabel(r"$I(Z;Y)$ (bits)",fontsize=16)
 	plt.xticks(fontsize=14)
 	plt.yticks(fontsize=14)
-	plt.scatter(npresult[:,1]*np.log2(np.exp(1)),npresult[:,2]*np.log2(np.exp(1)),label="BA")
+	plt.scatter(npresult[:,1]*np.log2(np.exp(1)),npresult[:,2]*np.log2(np.exp(1)),label=arguments['method'])
 	plt.tight_layout()
 
-	plt.axhline(y=enthy*np.log2(np.exp(1)),xmin=0,xmax=np.amax(npresult[:,1]*np.log2(np.exp(1))),
-				linewidth=2,color='b',linestyle="--",label=r"$H(Y)\geq I(Y;Z)$")
-	plt.axline((0,0),(np.amax(npresult[:,2]*np.log2(np.exp(1))),np.amax(npresult[:,2]*np.log2(np.exp(1)))),
-		linewidth=2,color='m',linestyle=":",label=r"$I(X;Y)\geq I(Y;Z)$")
-	plt.legend(fontsize=12, loc='center left')
+	plt.axhline(y=mixy*np.log2(np.exp(1)),xmin=0,xmax=np.amax(npresult[:,1]*np.log2(np.exp(1))),
+				linewidth=2,color='b',linestyle="--",label=r"$I(Z;Y)=I(X;Y)$")
+	plt.axline((0,0),(mixy*np.log2(np.exp(1)),mixy*np.log2(np.exp(1))),
+		linewidth=2,color='m',linestyle=":",label=r"$I(Z;Y)\leq I(Z;X)$")
+	plt.legend(fontsize=12, loc='best')
 	plt.show()
 #elif args.draw == "mixz":
-#elif args.draw == "miyz":
+elif args.draw == "miyz":
+	titletex = r'$I(Z;Y)$ versus $\beta$, $|Z|={:}$, thres={:.2e}'.format(d_pxy.shape[1],arguments['thres'])
+	fig = plt.figure()
+	plt.grid()
+	plt.title(titletex,fontsize=18)
+	plt.xlabel(r"$\beta$",fontsize=16)
+	plt.ylabel(r"$I(Z;Y)$ (bits)",fontsize=16)
+	plt.xticks(fontsize=14)
+	plt.yticks(fontsize=14)
+	plt.scatter(npresult[:,0],npresult[:,2]*np.log2(np.exp(1)),label=arguments['method'])
+	plt.tight_layout()
+	plt.axhline(y=mixy*np.log2(np.exp(1)),xmin=0,xmax=np.amax(beta_range),
+		label=r"I(X;Y)",linewidth=2.5,linestyle=":",
+		color="m")
+	#plt.axhline(y=enthy*np.log2(np.exp(1)),xmin=0,xmax=np.amax(npresult[:,1]*np.log2(np.exp(1))),
+	#			linewidth=2,color='b',linestyle="--",label=r"$H(Y)\geq I(Y;Z)$")
+	#plt.axline((0,0),(np.amax(npresult[:,2]*np.log2(np.exp(1))),np.amax(npresult[:,2]*np.log2(np.exp(1)))),
+	#	linewidth=2,color='m',linestyle=":",label=r"$I(X;Y)\geq I(Y;Z)$")
+	plt.legend(fontsize=12, loc='best')
+	plt.show()
 #elif args.draw == "mi":
-#elif args.draw == "niter":
+elif args.draw == "niter":
+	titletex = r'Convergence Time, $|Z|={:}$, thres={:.2e}'.format(d_pxy.shape[1],arguments['thres'])
+	fig = plt.figure()
+	plt.grid()
+	plt.title(titletex,fontsize=18)
+	plt.xlabel(r"$\beta$",fontsize=16)
+	plt.ylabel(r"Number of Iterations",fontsize=16)
+	plt.xticks(fontsize=14)
+	plt.yticks(fontsize=14)
+	plt.scatter(npresult[:,0],npresult[:,3]*np.log2(np.exp(1)),label=arguments['method'])
+	plt.tight_layout()
+	plt.yscale("log")
+	#plt.axhline(y=mixy*np.log2(np.exp(1)),xmin=0,xmax=np.amax(beta_range),
+	#	label=r"I(X;Y)",linewidth=2.5,linestyle=":",
+	#	color="m")
+	#plt.axhline(y=enthy*np.log2(np.exp(1)),xmin=0,xmax=np.amax(npresult[:,1]*np.log2(np.exp(1))),
+	#			linewidth=2,color='b',linestyle="--",label=r"$H(Y)\geq I(Y;Z)$")
+	#plt.axline((0,0),(np.amax(npresult[:,2]*np.log2(np.exp(1))),np.amax(npresult[:,2]*np.log2(np.exp(1)))),
+	#	linewidth=2,color='m',linestyle=":",label=r"$I(X;Y)\geq I(Y;Z)$")
+	plt.legend(fontsize=12, loc='best')
+	plt.show()	
 else:
 	sys.exit()

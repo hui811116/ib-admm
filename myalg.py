@@ -288,6 +288,7 @@ def ib_gd(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	nz = qlevel
 	px = np.sum(pxy,axis=1)
 	py = np.sum(pxy,axis=0)
+	py = py/sum(py)
 	pycx = np.transpose((1./px)[:,None]*pxy)
 	pxcy = pxy*(1./py)[None,:]
 	# on IB, the initialization matters
