@@ -46,3 +46,14 @@ def genOutName(**kwargs):
 		return 'bayat_{}_result'.format(kwargs['dataset'])
 	else:
 		sys.exit('undefined method {}'.format(method))
+
+def getFigLabel(**kwargs):
+	method = kwargs['method']
+	if method == 'orig':
+		return 'IB-orig'
+	elif method == 'gd':
+		return 'IB-gd'
+	elif method == 'bayat':
+		return r"bayat, $c={:}$".format(kwargs['penalty'])
+	elif method == 'dev':
+		return r"ours, $c={:}, \omega={:}$".format(kwargs['penalty'],kwargs['omega'])

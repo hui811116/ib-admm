@@ -37,12 +37,12 @@ def ib_orig(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	# use random start (*This is the one used for v2)
 	#sel_idx = np.random.permutation(nx)
 	sel_idx = rs.permutation(nx)
-	pz = px[sel_idx[:qlevel]]
+	pz = px[sel_idx[:nz]]
 	pz /= np.sum(pz)
-	#pzcx = np.random.rand(nz,nx)
 	pzcx = rs.rand(nz,nx)
 	pzcx = pzcx * (1./np.sum(pzcx,axis=0))[None,:]
-	pzcx[:nz,:] = pycx
+	pzcx[:nz,:] = pycx[:,sel_idx[:nz]]
+	
 	pycz = pycx@ np.transpose(1/pz[:,None]*pzcx*px[None,:])
 	
 	# ready to start
@@ -198,14 +198,15 @@ def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	# use random start
 	#sel_idx = np.random.permutation(nx)
 	sel_idx = rs.permutation(nx)
-	pz = px[sel_idx[:qlevel]]
+	pz = px[sel_idx[:nz]]
 	pz /= np.sum(pz)
 	pz_delay = copy.copy(pz)
 	pzcx = rs.rand(nz,nx)
 	pzcx = pzcx * (1./np.sum(pzcx,axis=0))[None,:]
 	pzcx_delay = copy.copy(pzcx)
-	pzcx[:nz,:] = pycx
+	pzcx[:nz,:] = pycx[:,sel_idx[:nz]]
 	pzcy = pzcx@pxcy
+	pzcy = pzcy * (1./np.sum(pzcx,axis=0))[None,:]
 	# ready to start
 	itcnt = 0
 	# gradient descent control
@@ -300,16 +301,13 @@ def ib_gd(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	'''
 	#sel_idx = np.random.permutation(nx)
 	sel_idx = rs.permutation(nx)
-	pycz = pycx[:,sel_idx[:qlevel]]
-	pz = px[sel_idx[:qlevel]]
+	pz = px[sel_idx[:nz]]
 	pz /= np.sum(pz)
-	
-	#pzcx = np.random.rand(nz,nx)
 	pzcx = rs.rand(nz,nx)
-	pzcx = pzcx /np.sum(pzcx,axis=0)[None,:]
-	pzcx[:nz,:] = pycx
-	pycz = pycx@ np.transpose(1/pz[:,None]*pzcx*px[None,:])
-	pycz = pycz /np.sum(pycz,axis=0)[None,:]
+	pzcx = pzcx * (1./np.sum(pzcx,axis=0))[None,:]
+	pzcx[:nz,:] = pycx[:,sel_idx[:nz]]
+	pzcy = pzcx@pxcy
+	pzcy = pzcy * (1./np.sum(pzcx,axis=0))[None,:]
 	# naive method
 	grad_obj = ent.getLibGDGradObj(beta,px,py,pxcy,pycx)
 	func_obj = ent.getLibGDFuncObj(beta,px,py,pxcy,pycx)
@@ -480,12 +478,12 @@ def admmib_bayat(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	# use random start
 	#sel_idx = np.random.permutation(nx)
 	sel_idx = rs.permutation(nx)
-	pz = px[sel_idx[:qlevel]]
+	pz = px[sel_idx[:nz]]
 	pz /= np.sum(pz)
 	pzcx = rs.rand(nz,nx)
 	#pzcx = np.random.rand(nz,nx)
 	pzcx = pzcx * (1./np.sum(pzcx,axis=0))[None,:]
-	pzcx[:nz,:] = pycx
+	pzcx[:nz,:] = pycx[:,sel_idx[:nz]]
 	pzcy = pzcx@pxcy
 	pzcy = pzcy * (1./np.sum(pzcy,axis=0))[None,:]
 	'''

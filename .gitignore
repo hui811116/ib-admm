@@ -132,3 +132,6 @@ dmypy.json
 *.txt
 *.pkl
 *.csv
+
+# Experiment directory
+exp*/

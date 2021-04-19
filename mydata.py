@@ -19,7 +19,7 @@ def synICLR2020_WU():
 	return {'pxy':gbl_pxy,'nx':3,'ny':3}
 
 def synMy():
-	gbl_pycx = np.array([[0.80,0.25,0.05],[0.15,0.60,0.05],[0.05,0.15,0.90]])
+	gbl_pycx = np.array([[0.80,0.20,0.05],[0.15,0.65,0.05],[0.05,0.15,0.90]])
 	gbl_px = np.ones(3,)/3
 	gbl_pxy = (gbl_pycx*gbl_px[None,:]).T
 	return {'pxy':gbl_pxy,'nx':3, 'ny':3}
