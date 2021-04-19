@@ -308,6 +308,8 @@ def ib_gd(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	pzcx[:nz,:] = pycx[:,sel_idx[:nz]]
 	pzcy = pzcx@pxcy
 	pzcy = pzcy * (1./np.sum(pzcx,axis=0))[None,:]
+
+	pycz = ((1/pz) @pzcy @ py).T
 	# naive method
 	grad_obj = ent.getLibGDGradObj(beta,px,py,pxcy,pycx)
 	func_obj = ent.getLibGDFuncObj(beta,px,py,pxcy,pycx)
@@ -569,6 +571,7 @@ def admmib_bayat(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 		dtv_z = 0.5* (np.sum(np.fabs(penalty_pz)))
 		dtv_zy = 0.5* (np.sum(np.fabs(penalty_pzcy),axis=0)) # a y dimensional vector
 		if dtv_z < conv_thres and np.all(dtv_zy < conv_thres):
+		#if dtv_z < conv_thres:
 			isvalid = True
 			break
 	mixz = ut.calc_mi(pzcx,px)
@@ -576,6 +579,7 @@ def admmib_bayat(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	pen_check = 0.5*np.sum(np.fabs(pz-pzcx@px))
 	pen_check_pzcy = 0.5*(np.sum(np.fabs(pzcy-(pzcx@pxcy)/(np.sum(pzcx@pxcy,axis=0)[None,:])),axis=0))
 	isvalid = (pen_check<=conv_thres and np.all(pen_check_pzcy<=conv_thres))
+	#isvalid = (pen_check<=conv_thres)
 	
 
 	return {'prob_zcx':pzcx,'prob_z':pz,'prob_zcy':pzcy,

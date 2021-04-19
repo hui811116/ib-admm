@@ -18,14 +18,14 @@ d_base = os.getcwd()
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("method",type=str,choices=['orig','gd','alm','sec'],help="select the method")
+parser.add_argument("method",type=str,choices=['orig','gd','alm','sec','bayat','dev'],help="select the method")
 parser.add_argument('-dataset',type=str,choices=['synWu'],default='synWu',help='select the dataset')
 parser.add_argument("-beta",type=float,help='the IB beta',default=1.0)
 parser.add_argument('-ntime',type=int,help='run how many times per beta',default=25)
 parser.add_argument('-penalty',type=float,help='penalty coefficient',default=4.0)
 parser.add_argument('-omega',type=float,help='Bregman Regularization coefficient',default=0.0)
 parser.add_argument('-thres',type=float,help='convergence threshold',default=1e-5)
-parser.add_argument('-seed',type=int,help='Random seed for reproduction',default=123)
+parser.add_argument('-seed',type=int,help='Random seed for reproduction',default=None)
 parser.add_argument("-v",'--verbose',help='printing the log and parameters along the execution',action='count',default=0)
 
 
@@ -36,10 +36,12 @@ argdict = vars(args)
 _sys_parms = {
 	'backtracking_alpha': 0.45,
 	'backtracking_beta' : 0.5,
+	'line_search_init'  : 0.05,
 	'max_iter'          : 10000,
 	'conv_thres'        : args.thres,
 	'penalty_coeff'     : args.penalty,
 	'breg_omega'        : args.omega,
+	'rand_seed'         : args.seed,
 }
 
 if args.verbose:

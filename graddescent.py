@@ -63,7 +63,7 @@ def wolfeStepSize(prob,update,init_ss,ss_beta,ss_c1,obj_func,obj_grad,lambda_reg
 		raw_grad = now_grad + grad_lambda
 		now_grad = raw_grad - lambda_reg
 	while f_next + f_now + ss_c1*ss*np.sum(update*now_grad):
-		if ss <= 1e-9:
+		if ss <= 1e-12:
 			ss = 0
 			break
 		ss *= ss_beta
