@@ -11,48 +11,31 @@ d_base = os.getcwd()
 
 parser = argparse.ArgumentParser()
 parser.add_argument("filedir",type=str,help='specify the directory to be converted')
-#parser.add_argument('-output',type=str,help='specify the output file name',default='converted')
-#parser.add_argument('-draw',type=str,choices=["ib","mi","mixz","miyz","niter",""],default="")
 parser.add_argument('-save',help='printing the log and parameters along the execution',action='count',default=0)
+parser.add_argument('-conv',help='Exporting figures for presentation',action='count',default=0)
+parser.add_argument('-mi',help='Plotting the Mutual Information and Information Plane',action='count',default=0)
 
 args = parser.parse_args()
 
 inputdir = os.path.join(d_base,args.filedir)
 
-##
-def readResult(filedir=".",savedir=".",collect=False):
-	enddir = False
-	for files in os.listdir(filedir):
-		if files == 'arguments.pkl':
-			with open(os.path.join(filedir,'arguments.pkl'),'rb') as fid:
-				arguments = pickle.load(fid)
-				enddir = True
-		elif files == 'sysParams.pkl':
-			with open(os.path.join(filedir,'sysParams.pkl'),'rb') as fid:
-				sysParams = pickle.load(fid)
-		elif '.pkl' in files:
-			with open(os.path.join(filedir,files),'rb') as fid:
-				results = pickle.load(fid)
-	if not enddir:
-		return
 
 
-	beta_range = np.geomspace(arguments['minbeta'],arguments['maxbeta'],num=arguments['numbeta'])
-	#print('arguments summary:')
-	#pprint.pprint(arguments)
-	#print('-'*50)
-	#print('Results:')
-	#print('-'*50)
+mk_sets = ["^","s","+",".","x","o"]
+ls_sets = [":","--","-.","-"]
+color_sets = ["g","m","k","r","b","c",'y']
 
-	d_pxy_info = dt.datasetSelect(arguments['dataset'])
-	# compute the H(Y) and I(X;Y)
-	d_pxy = d_pxy_info['pxy']
-	py = np.sum(d_pxy,axis=0)
-	px = np.sum(d_pxy,axis=1)
-	enthy = np.sum(-py*np.log(py)) # nats, convert later
-	mixy = np.sum(d_pxy*np.log(d_pxy/py[None,:]/px[:,None]))
-	print('Estimated H(Y):{:.6f}, I(X:Y):{:.6f}'.format(enthy,mixy))
 
+fs_s = {
+	'label_fs': 16,
+	'title_fs': 18,
+	'tick_fs' : 14,
+	'leg_fs'  : 14,
+}
+
+penalty_methods = ['dev','sec','bayat']
+
+def extractData(results):
 	res_hdr = ['IXZ','IYZ','niter','valid']
 	collect_all = []
 	nconv_rate = []
@@ -71,13 +54,95 @@ def readResult(filedir=".",savedir=".",collect=False):
 		nconv_rate.append([beta,nvalid/ncnt])
 	npresult = np.array(collect_all)
 	nconv_res =  np.array(nconv_rate)
-	#print(nconv_res)
+	return (npresult, nconv_res)
 
+def readFolder(filedir):
+	enddir = False
+	for files in os.listdir(filedir):
+		if files == 'arguments.pkl':
+			with open(os.path.join(filedir,'arguments.pkl'),'rb') as fid:
+				arguments = pickle.load(fid)
+				enddir = True
+		elif files == 'sysParams.pkl':
+			with open(os.path.join(filedir,'sysParams.pkl'),'rb') as fid:
+				sysParams = pickle.load(fid)
+		elif '.pkl' in files:
+			with open(os.path.join(filedir,files),'rb') as fid:
+				results = pickle.load(fid)
+	if not enddir:
+		print('found no arguments')
+		return
+	beta_range = np.geomspace(arguments['minbeta'],arguments['maxbeta'],num=arguments['numbeta'])
+	d_pxy_info = dt.datasetSelect(arguments['dataset'])
+	# compute the H(Y) and I(X;Y)
+	d_pxy = d_pxy_info['pxy']
+	py = np.sum(d_pxy,axis=0)
+	px = np.sum(d_pxy,axis=1)
+	enthy = np.sum(-py*np.log(py)) # nats, convert later
+	mixy = np.sum(d_pxy*np.log(d_pxy/py[None,:]/px[:,None]))
+	tmpdict = {
+		'data':results, 'pxy':d_pxy,'mixy':mixy,'beta_range':beta_range,
+		'method':arguments['method'],'ntime':arguments['ntime'],
+		'penalty':arguments['penalty'],'omega':arguments['omega'],
+		'thres':arguments['thres'],
+	}
+	return tmpdict
+
+## for plotting mi
+def miResult(filedir):
+	readout = readFolder(filedir)
+	res_hdr = ['IXZ','IYZ','niter','valid']
+	(npresult,nconv_res) = extractData(readout['data'])
+	method = readout['method']
+	penalty = readout['penalty']
+	if method == 'dev':
+		labeltex = r"alm, $c={:},\omega={:}$".format(int(penalty),int(readout['omega']))
+	elif method=='bayat':
+		labeltex = r"bayat, $c={:}$".format(int(penalty))
+	elif method=='gd':
+		labeltex = r"IB-gd"
+	elif method == 'orig':
+		labeltex = r"IB-BA"
+	else:
+		sys.exit("method {:} undefined".format(method))
+	
+	outdict = {'data':npresult,'hdr':['beta']+res_hdr,'method':method,'label':labeltex,'mixy':mixy}
+	return outdict
+
+## for plotting convergence specifically
+def convResult(filedir):
+	readout = readFolder(filedir)
+	results = readout['data']
+	res_hdr = ['IXZ','IYZ','niter','valid']
+	(npresult,nconv_res) = extractData(results)
+	method = readout['method']
+	penalty = readout['penalty']
+	out_dict = {'beta':nconv_res[:,0],'percent':nconv_res,'method':method,'penalty':penalty}
+	if method == 'dev':
+		out_dict['omega'] = readout['omega']
+	elif method in penalty_methods:
+		pass
+	else:
+		sys.exit("fatal error, the method does not belong to penalty methods")
+	return out_dict
+
+##
+def readResult(filedir=".",savedir=".",collect=False):
+	readout = readFolder(filedir)
+	results = readout['data']
+	print('Estimated I(X:Y):{:.6f}'.format(readout['mixy']))
+
+	res_hdr = ['IXZ','IYZ','niter','valid']
+	
+	(npresult,nconv_res) = extractData(results)
 	fig_label = ut.getFigLabel(**arguments)
 	# plotting (scatter)
 	# 1. IB curve: I(Y;Z) versus I(X;Z)
 	# 2. MI:       I(Y;Z), I(X;Z) versus beta
 	# 3. niter:    niter versus beta
+	# 4. convergence ratio: over ntrials, not the rate at which error decreases
+
+	sel_conv = npresult[:,4]!=0 # selecting those converged
 	fig, (ax1,ax2,ax3,ax4) = plt.subplots(1,4)
 	fig.set_size_inches(16,6)
 	title_tex = r'Method:{},Name:{},Data:{},Conv=${:.3e}$'.format(
@@ -85,12 +150,12 @@ def readResult(filedir=".",savedir=".",collect=False):
 	fig.suptitle(title_tex)
 	# SUBFIGURE 1
 	ax1.grid()
-	ax1.scatter(npresult[:,1],npresult[:,2],label=fig_label)
+	# exclude the points that diverge
+	ax1.scatter(npresult[sel_conv,1],npresult[sel_conv,2],label=fig_label)
 	ax1.set_xlabel(r'$I(X;Z)$')
 	ax1.set_ylabel(r'$I(Y;Z)$')
-	#print(npresult[:,1])
-	#print(np.amax(npresult[:,1]))
-	ax1.axhline(y=mixy,xmin=0,xmax=np.amax(npresult[:,1]+1.0),
+
+	ax1.axhline(y=mixy,xmin=0,xmax=np.amax(npresult[:,1])+1.0,
 					linewidth=2,color='b',linestyle="--",label=r"$I(Z;Y)=I(X;Y)$")
 	ax1.axline((0,0),(mixy,mixy),
 			linewidth=2,color='m',linestyle=":",label=r"$I(Z;Y)\leq I(Z;X)$")
@@ -100,19 +165,15 @@ def readResult(filedir=".",savedir=".",collect=False):
 	ax2.grid()
 	ax2.set_xlabel(r'$\beta$')
 	ax2.set_ylabel(r'$I(Y;Z), I(X;Z)$')
-	ax2.scatter(npresult[:,0],npresult[:,1],label=r"$I(X;Z)$")
-	ax2.scatter(npresult[:,0],npresult[:,2],label=r"$I(Y;Z)$")
+	ax2.scatter(npresult[sel_conv,0],npresult[sel_conv,1],label=r"$I(X;Z)$")
+	ax2.scatter(npresult[sel_conv,0],npresult[sel_conv,2],label=r"$I(Y;Z)$")
 	ax2.legend()
 	# SUBFIGURE3
 	ax3.grid()
-	#twin_v = ax3.twinx()
-	#twin_v.set_ylabel("Percentage of Convergence")
 	ax3.set_xlabel(r'$\beta$')
-	#fig3_p2 = twin_v.plot(nconv_res[0],nconv_res[1],":k*",label=r"conv. ($%$)")
 	ax3.set_ylabel('Number of Iterations')
 	ax3.scatter(npresult[:,0],npresult[:,3],label=r"# iterations")
 	ax3.set_yscale('log')
-	#ax3.legend()
 
 	# SUBFIGURE4
 	ax4.grid()
@@ -120,13 +181,11 @@ def readResult(filedir=".",savedir=".",collect=False):
 	ax4.set_ylabel(r'convergence (\%)')
 	ax4.set_ylim(0.0,100.0)
 	ax4.plot(nconv_res[:,0],100*nconv_res[:,1],'-k*',label=r"conv.")
-	#ax4.legend()
 
 	plt.tight_layout()
-	
 
 	savename = os.path.join(filedir,"infoplane.eps")
-	plt.savefig(savename,dpi=150)
+	plt.savefig(savename,dpi=300)
 	print("saving the figure to:{:}".format(savename))
 
 	# collectively
@@ -136,186 +195,149 @@ def readResult(filedir=".",savedir=".",collect=False):
 		pathlist = os.path.split(filedir)
 		collectpath = os.path.join(savedir,"collect_figs")
 		os.makedirs(collectpath,exist_ok=True)
-		plt.savefig(os.path.join(collectpath,pathlist[-1]+'.eps'),dpi=150)
+		plt.savefig(os.path.join(collectpath,pathlist[-1]+'.eps'),dpi=300)
 		print("save collected figures to:{}".format(collectpath))
 		#print("trying to save to {}".format(os.path.join(savedir,pathlist[-1])))
 
 	plt.close()
 
+if args.conv:
+	# experiment mode
+	# the directory has various method in single parameter 
+	# currently support convergence rate comparison
+	conv_collect = {}
+	# structure:
+	#		method
+	#		beta
+	#		percentage of convergent trials
 
-# could be single example
-readResult(inputdir,inputdir,False)
-
-# or experiments
-for files in os.listdir(inputdir):
-	fullname = os.path.join(inputdir,files)
-	#print(os.path.join(d_base,fullname))
-	#print(os.path.isdir(os.path.join(d_base,fullname)))
-	hir_dir  = os.path.join(d_base,fullname)
-	if os.path.isdir(hir_dir):
-		readResult(hir_dir,inputdir,args.save)
-
-
-
-
-
-'''
-
-for files in os.listdir(filedir):
-	if files == 'arguments.pkl':
-		with open(os.path.join(filedir,'arguments.pkl'),'rb') as fid:
-			arguments = pickle.load(fid)
-	elif files == 'sysParams.pkl':
-		with open(os.path.join(filedir,'sysParams.pkl'),'rb') as fid:
-			sysParams = pickle.load(fid)
-	elif '.pkl' in files:
-		with open(os.path.join(filedir,files),'rb') as fid:
-			results = pickle.load(fid)
-'''
-
-#
-'''
-beta_range = np.geomspace(arguments['minbeta'],arguments['maxbeta'],num=arguments['numbeta'])
-print('arguments summary:')
-pprint.pprint(arguments)
-print('-'*50)
-print('Results:')
-print('-'*50)
-
-d_pxy_info = dt.datasetSelect(arguments['dataset'])
-# compute the H(Y) and I(X;Y)
-d_pxy = d_pxy_info['pxy']
-py = np.sum(d_pxy,axis=0)
-px = np.sum(d_pxy,axis=1)
-enthy = np.sum(-py*np.log(py)) # nats, convert later
-mixy = np.sum(d_pxy*np.log(d_pxy/py[None,:]/px[:,None]))
-print('Estimated H(Y):{:.6f}, I(X:Y):{:.6f}'.format(enthy,mixy))
-
-res_hdr = ['IXZ','IYZ','niter','valid']
-collect_all = []
-for bidx, item_beta in enumerate(results):
-	beta = item_beta['beta']
-	beta_result = item_beta['result']
-	ncnt = len(beta_result)
-	nvalid = 0
-	for nidx, nresult in enumerate(beta_result):
-		nvalid += int(nresult['valid'])
-		tmp_row = [beta]
-		for ele in res_hdr:
-			tmp_row.append(float(nresult[ele]))
-		collect_all.append(tmp_row)
-	print('beta={:6.2f}; convergence rate--{:10.4f}'.format(beta,nvalid/ncnt))
-npresult = np.array(collect_all)
-
-fig_label = ut.getFigLabel(**arguments)
-# plotting (scatter)
-# 1. IB curve: I(Y;Z) versus I(X;Z)
-# 2. MI:       I(Y;Z), I(X;Z) versus beta
-# 3. niter:    niter versus beta
-fig, (ax1,ax2,ax3) = plt.subplots(1,3)
-fig.set_size_inches(12,6)
-title_tex = r'Method:{},Name:{},Data:{},Conv=${:.3e}$'.format(
-	arguments['method'],arguments['output'],arguments['dataset'],arguments['thres'])
-fig.suptitle(title_tex)
-# SUBFIGURE 1
-ax1.grid()
-ax1.scatter(npresult[:,1],npresult[:,2],label=fig_label)
-ax1.set_xlabel(r'$I(X;Z)$')
-ax1.set_ylabel(r'$I(Y;Z)$')
-ax1.axhline(y=mixy*np.log2(np.exp(1)),xmin=0,xmax=np.amax(npresult[:,1]*np.log2(np.exp(1))),
-				linewidth=2,color='b',linestyle="--",label=r"$I(Z;Y)=I(X;Y)$")
-ax1.axline((0,0),(mixy*np.log2(np.exp(1)),mixy*np.log2(np.exp(1))),
-		linewidth=2,color='m',linestyle=":",label=r"$I(Z;Y)\leq I(Z;X)$")
-ax1.legend()
-
-# SUBFIGURE 2
-ax2.grid()
-ax2.set_xlabel(r'$\beta$')
-ax2.set_ylabel(r'$I(Y;Z), I(X;Z)$')
-ax2.scatter(npresult[:,0],npresult[:,1],label=r"$I(X;Z)$")
-ax2.scatter(npresult[:,0],npresult[:,2],label=r"$I(Y;Z)$")
-ax2.legend()
-# SUBFIGURE3
-ax3.grid()
-ax3.set_xlabel(r'$\beta$')
-ax3.set_ylabel('Number of Iterations')
-ax3.scatter(npresult[:,0],npresult[:,3])
-ax3.set_yscale('log')
-plt.tight_layout()
-if args.save:
-	savename = os.path.join(filedir,"infoplane.eps")
-	plt.savefig(savename,dpi=150)
-	print("saving the figure to:{:}".format(savename))
-plt.show()
-
-'''
-
-
-'''
-# if some specific plot is needed
-'''
-'''
-if args.draw == "ib":
-	titletex = r'Information Plane, $|Z|={:}$, thres={:.2e}'.format(d_pxy.shape[1],arguments['thres'])
+	for files in os.listdir(inputdir):
+		if files == 'collect_figs':
+			continue
+		fullname = os.path.join(inputdir,files)
+		if os.path.isdir(fullname):
+			one_conv = convResult(fullname)
+			method = one_conv['method']
+			betas  = one_conv['beta']
+			percent= one_conv['percent']
+			penalty= one_conv['penalty']
+			#print(one_conv)
+			#{'beta': array([5.5, 6. ]), 'percent': array([[5.5, 0. ],[6. , 0. ]]), 'method': 'bayat', 'penalty': 80.0}
+			if not conv_collect.get(method,False):
+				conv_collect[method] = {}
+			if method == 'dev':
+				# handle omega
+				omega = str(int(one_conv['omega']))
+				if not conv_collect['dev'].get(omega,False):
+					conv_collect['dev'][omega] = {}
+			for tmp_idx in range(len(betas)):
+				if method == 'dev':
+					ref_dict = conv_collect[method][omega]
+				else:
+					ref_dict = conv_collect[method]
+				str_beta = '{:.2f}'.format(betas[tmp_idx])
+				if not ref_dict.get(str_beta,False):
+					ref_dict[str_beta] = []
+				ref_dict[str_beta].append([penalty, percent[tmp_idx][1]])
+			ref_dict['beta'] = betas
+	mk_idx = 0
+	ls_idx = 0
+	color_idx = 0
 	fig = plt.figure()
 	plt.grid()
-	plt.title(titletex,fontsize=18)
-	plt.xlabel(r"$I(Z;X)$ (bits)",fontsize=16)
-	plt.ylabel(r"$I(Z;Y)$ (bits)",fontsize=16)
+	
+	for nk,nv in conv_collect.items():
+		#method, #dict
+		if nk == 'dev':
+			# each omega
+			for ik,iv in nv.items():
+				label_tex = r'alm,$\omega={:}$'.format(float(ik))
+				# each beta in text, and beta values
+				for iik,iiv in iv.items():
+					if iik != 'beta':
+						tmp_conv = np.sort(np.array(iiv),axis=0)
+						plt.plot(tmp_conv[:,0],100.0*tmp_conv[:,1],label=label_tex+r",$\beta={:.2f}$".format(float(iik)),
+							linewidth=2.0,
+							marker=mk_sets[mk_idx],
+							linestyle=ls_sets[ls_idx],
+							color=color_sets[color_idx])
+						mk_idx +=1
+						ls_idx+=1
+						color_idx+=1
+			
+		else:
+			for ik,iv in nv.items():
+				if ik != 'beta':
+					label_tex = r'{},$\beta={:.2f}$'.format(nk,float(ik)) 
+					tmp_conv = np.sort(np.array(iv),axis=0)
+					plt.plot(tmp_conv[:,0],100.0*tmp_conv[:,1],label=label_tex,linewidth=2.0,
+							marker=mk_sets[mk_idx],
+							linestyle=ls_sets[ls_idx],
+							color=color_sets[color_idx])
+					mk_idx +=1
+					ls_idx+=1
+					color_idx+=1
+	plt.legend(fontsize=14)
+	plt.title(r"$|X|=|Y|=|Z|=3,n={:},conv={:.2e}$".format(100,1e-6),fontsize=18)
+	plt.xlabel(r"penalty coeff., $c$",fontsize=16)
+	plt.ylabel(r"Convergent Trials (%)",fontsize=16)
 	plt.xticks(fontsize=14)
 	plt.yticks(fontsize=14)
-	plt.scatter(npresult[:,1]*np.log2(np.exp(1)),npresult[:,2]*np.log2(np.exp(1)),label=arguments['method'])
 	plt.tight_layout()
-
-	plt.axhline(y=mixy*np.log2(np.exp(1)),xmin=0,xmax=np.amax(npresult[:,1]*np.log2(np.exp(1))),
-				linewidth=2,color='b',linestyle="--",label=r"$I(Z;Y)=I(X;Y)$")
-	plt.axline((0,0),(mixy*np.log2(np.exp(1)),mixy*np.log2(np.exp(1))),
-		linewidth=2,color='m',linestyle=":",label=r"$I(Z;Y)\leq I(Z;X)$")
-	plt.legend(fontsize=12, loc='best')
+	#plt.show()
+	
+	savefile = os.path.join( inputdir , args.filedir+"_conv.eps")
+	plt.savefig(savefile,dpi=300)
+	print("saving convergence figure to: {:}".format(savefile))
+	plt.close()
+		
+elif args.mi:
+	results_list = []
+	for files in os.listdir(inputdir):
+		fullname = os.path.join(inputdir,files)
+		if os.path.isdir(fullname):
+			results_list.append(miResult(fullname))
+	results_list.sort(key=lambda x: x['method'])
+	mk_idx = 0
+	ls_idx = 0
+	color_idx = 0
+	fig = plt.figure()
+	plt.grid()
+	xmax = 0
+	for data in results_list:
+		sel_idx = data['data'][:,4] !=0
+		plt.scatter(data['data'][sel_idx,1]*np.log2(np.exp(1)),data['data'][sel_idx,2]*np.log2(np.exp(1)),
+			label=data['label'],color=color_sets[color_idx],marker=mk_sets[mk_idx])
+		mk_idx += 1
+		mk_idx = mk_idx % len(mk_sets)
+		color_idx += 1
+		color_idx = color_idx % len(color_sets)
+		mixy = data['mixy']
+		tmpxmax = np.amax(data['data'][:,1])
+		xmax = np.maximum(tmpxmax,xmax)
+	plt.axhline(y=mixy*np.log2(np.exp(1)),xmin=0,xmax=np.amax(xmax+1.0)*np.log2(np.exp(1)),
+					linewidth=2,linestyle="--",label=r"$I(Z;Y)=I(X;Y)$")
+	plt.axline((0,0),(mixy,mixy),
+			linewidth=2,linestyle=":",label=r"$I(Z;Y)\leq I(Z;X)$")
+	plt.xlabel(r"$I(Z;X)$ (bits)",fontsize=14)
+	plt.ylabel(r"$I(Z;Y)$ (bits)",fontsize=14)
+	plt.xticks(fontsize=12)
+	plt.yticks(fontsize=12)
+	plt.title(r"Information Plane,$|Z|=3$,conv=${:}$".format(1e-5),fontsize=18)
+	plt.legend(fontsize=12)
 	plt.show()
-#elif args.draw == "mixz":
-elif args.draw == "miyz":
-	titletex = r'$I(Z;Y)$ versus $\beta$, $|Z|={:}$, thres={:.2e}'.format(d_pxy.shape[1],arguments['thres'])
-	fig = plt.figure()
-	plt.grid()
-	plt.title(titletex,fontsize=18)
-	plt.xlabel(r"$\beta$",fontsize=16)
-	plt.ylabel(r"$I(Z;Y)$ (bits)",fontsize=16)
-	plt.xticks(fontsize=14)
-	plt.yticks(fontsize=14)
-	plt.scatter(npresult[:,0],npresult[:,2]*np.log2(np.exp(1)),label=arguments['method'])
-	plt.tight_layout()
-	plt.axhline(y=mixy*np.log2(np.exp(1)),xmin=0,xmax=np.amax(beta_range),
-		label=r"I(X;Y)",linewidth=2.5,linestyle=":",
-		color="m")
-	#plt.axhline(y=enthy*np.log2(np.exp(1)),xmin=0,xmax=np.amax(npresult[:,1]*np.log2(np.exp(1))),
-	#			linewidth=2,color='b',linestyle="--",label=r"$H(Y)\geq I(Y;Z)$")
-	#plt.axline((0,0),(np.amax(npresult[:,2]*np.log2(np.exp(1))),np.amax(npresult[:,2]*np.log2(np.exp(1)))),
-	#	linewidth=2,color='m',linestyle=":",label=r"$I(X;Y)\geq I(Y;Z)$")
-	plt.legend(fontsize=12, loc='best')
-	plt.show()
-#elif args.draw == "mi":
-elif args.draw == "niter":
-	titletex = r'Convergence Time, $|Z|={:}$, thres={:.2e}'.format(d_pxy.shape[1],arguments['thres'])
-	fig = plt.figure()
-	plt.grid()
-	plt.title(titletex,fontsize=18)
-	plt.xlabel(r"$\beta$",fontsize=16)
-	plt.ylabel(r"Number of Iterations",fontsize=16)
-	plt.xticks(fontsize=14)
-	plt.yticks(fontsize=14)
-	plt.scatter(npresult[:,0],npresult[:,3]*np.log2(np.exp(1)),label=arguments['method'])
-	plt.tight_layout()
-	plt.yscale("log")
-	#plt.axhline(y=mixy*np.log2(np.exp(1)),xmin=0,xmax=np.amax(beta_range),
-	#	label=r"I(X;Y)",linewidth=2.5,linestyle=":",
-	#	color="m")
-	#plt.axhline(y=enthy*np.log2(np.exp(1)),xmin=0,xmax=np.amax(npresult[:,1]*np.log2(np.exp(1))),
-	#			linewidth=2,color='b',linestyle="--",label=r"$H(Y)\geq I(Y;Z)$")
-	#plt.axline((0,0),(np.amax(npresult[:,2]*np.log2(np.exp(1))),np.amax(npresult[:,2]*np.log2(np.exp(1)))),
-	#	linewidth=2,color='m',linestyle=":",label=r"$I(X;Y)\geq I(Y;Z)$")
-	plt.legend(fontsize=12, loc='best')
-	plt.show()	
+	plt.close()
+	
+
+
 else:
-	sys.exit()
-'''
+	# could be single example
+	readResult(inputdir,inputdir,False)
+	# or experiments
+	for files in os.listdir(inputdir):
+		fullname = os.path.join(inputdir,files)
+		if os.path.isdir(fullname):
+			readResult(fullname,inputdir,args.save)
+
+
+

@@ -26,14 +26,14 @@ parser.add_argument('-dataset',type=str,choices=['synWu','synMy'],default='synWu
 parser.add_argument("-minbeta",type=float,help='the minimum beta to sweep',default=1.0)
 parser.add_argument("-maxbeta",type=float,help='the maximum beta to sweep',default=10.0)
 parser.add_argument('-numbeta',type=int,help='the geometric spacing between beta_min and beta_max',default=20)
-parser.add_argument('-ntime',type=int,help='run how many times per beta',default=10)
-parser.add_argument('-penalty',type=float,help='penalty coefficient',default=8.0)
-parser.add_argument('-omega',type=float,help='Bregman Regularization coefficient',default=0.0)
+parser.add_argument('-ntime',type=int,help='run how many times per beta',default=100)
+parser.add_argument('-penalty',type=float,help='penalty coefficient',default=4.0)
+parser.add_argument('-omega',type=float,help='Bregman Regularization coefficient',default=2.0)
 parser.add_argument('-thres',type=float,help='convergence threshold',default=1e-5)
 parser.add_argument('-sinit',type=float,help='Initial step size for line search',default=0.125)
 parser.add_argument('-sscale',type=float,help='Step size line search scaling',default=0.25)
 parser.add_argument('-seed',type=int,help='Random seed for reproduction',default=None)
-parser.add_argument('-maxiter',type=int,help='The maximum number of iteration per run',default=10000)
+parser.add_argument('-maxiter',type=int,help='The maximum number of iteration per run',default=5000)
 parser.add_argument("-v",'--verbose',help='printing the log and parameters along the execution',action='count',default=0)
 
 

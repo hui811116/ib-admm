@@ -260,20 +260,25 @@ print('trial:beta={beta:>6.2f}, IXZ={IXZ:<8.4f}, IYZ={IYZ:<8.4f}, niter={niter:<
 
 xx = np.arange(0,ib_res['niter'])
 #plt.plot(xx,ib_res['pzcx_min'],'-rx',label=r"min $p_{z|x}$")
-plt.plot(xx,ib_res['pz_min'],'-b+',label=r"min $p_z,Bp_{z|x}$")
-plt.plot(xx,ib_res['pzcy_min'],'-d',color='gray',label=r"min $p_{z|y}$")
+plt.plot(xx,ib_res['pz_min'],'-b',label=r"min $p_z,Bp_{z|x}$")
+#plt.plot(xx,ib_res['pzcy_min'],'-d',color='gray',label=r"min $p_{z|y}$")
 plt.plot(xx,np.repeat(np.amin(pxcy),ib_res['niter']),'--m',label=r"min $p_{x|y}$")
 plt.plot(xx,np.repeat(np.amin(pycx),ib_res['niter']),'-.k',label=r"min $p_{y|x}$")
 plt.plot(xx,np.repeat(np.amin(px),ib_res['niter']),'--c',label=r"min $p_x$")
 plt.plot(xx,np.repeat(np.amin(py),ib_res['niter']),':g',label=r"min $p_y$")
 plt.plot(xx,np.repeat(np.amin(pycx/py[:,None]),ib_res['niter']),'-.y',label=r"min $p_{y|x}/p_{y}$")
+#plt.plot(xx,np.repeat(np.amin(pycx/py[:,None]),ib_res['niter'])/ib_res['pz_min'],'-.',color='purple',label=r"inf/min")
+
 plt.yscale('log')
-plt.legend(fontsize=14)
+plt.legend(fontsize=12)
 plt.grid()
-title_tex =r"Minimum Probability over Iterations, $\beta={:.2f}$, iter={:3}".format(d_beta,ib_res['niter'])
-plt.title(title_tex)
-plt.xlabel("Iteration")
-plt.ylabel("Min probability")
+title_tex =r"$\beta={:.2f},c={:.1f},\omega={:.1f}$, Converged={:}".format(d_beta,
+	argdict['penalty'],argdict['omega'],ib_res['valid'])
+plt.title(title_tex,fontsize=18)
+plt.xlabel("Iteration",fontsize=14)
+plt.ylabel("Min probability",fontsize=14)
+plt.xticks(fontsize=12)
+plt.yticks(fontsize=12)
 plt.show()
 
 

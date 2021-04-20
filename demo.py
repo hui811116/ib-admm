@@ -37,7 +37,7 @@ _sys_parms = {
 	'backtracking_alpha': 0.45,
 	'backtracking_beta' : 0.5,
 	'line_search_init'  : 0.05,
-	'max_iter'          : 10000,
+	'max_iter'          : 5000,
 	'conv_thres'        : args.thres,
 	'penalty_coeff'     : args.penalty,
 	'breg_omega'        : args.omega,
