@@ -38,7 +38,7 @@ parser.add_argument('-sinit',type=float,help='Initial step size for line search'
 parser.add_argument('-sscale',type=float,help='Step size line search scaling',default=0.25)
 parser.add_argument('-seed',type=int,help='Random seed for reproduction',default=None)
 parser.add_argument('-maxiter',type=int,help='The maximum number of iteration per run',default=10000)
-#parser.add_argument("-v",'--verbose',help='printing the log and parameters along the execution',action='count',default=0)
+parser.add_argument("-v",'--verbose',help='printing the log and parameters along the execution',action='count',default=0)
 
 
 args = parser.parse_args()
