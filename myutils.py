@@ -47,6 +47,36 @@ def genOutName(**kwargs):
 	else:
 		sys.exit('undefined method {}'.format(method))
 
+def genExpName(**kwargs):
+	method = kwargs['method']
+	dataset = kwargs['dataset']
+	if method in ['alm','sec','dev']:
+		penalty = '{:.2f}'.format(kwargs['penalty'])
+		omega = '{:.2f}'.format(kwargs['omega'])
+		return '{}_{}_o{}_c{}'.format(method,dataset,str(omega),str(penalty))
+	elif method == 'bayat':
+		penalty = '{:.2f}'.format(kwargs['penalty'])
+		return '{}_{}_c{}'.format(method,dataset,str(penalty))
+	elif method in ['gd','orig']:
+		return '{}_{}_exp'.format(method,dataset)
+	else:
+		sys.exit('undefined method {} for experiment'.format(method))
+
+def genStatus(**kwargs):
+	method = kwargs['method']
+	dataset = kwargs['dataset']
+	if method in ['alm','sec','dev']:
+		penalty = '{:.2f}'.format(kwargs['penalty'])
+		omega = '{:.2f}'.format(kwargs['omega'])
+		return 'method:'+method+'---'+'beta,{beta:>6.3f}, penalty, {penalty_coeff:>6.2f}, omega, {breg_omega:>6.2f}, Progress:'
+	elif method == 'bayat':
+		penalty = '{:.2f}'.format(kwargs['penalty'])
+		return 'method:'+method+'---'+'beta,{beta:>6.3f}, penalty, {penalty_coeff:>6.2f}, Progress:'
+	elif method in ['gd','orig']:
+		return 'method:'+method+'---'+'beta,{beta:>6.3f}, Progress:'
+	else:
+		sys.exit('undefined method {} for experiment'.format(method))
+
 def getFigLabel(**kwargs):
 	method = kwargs['method']
 	if method == 'orig':
