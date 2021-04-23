@@ -119,7 +119,7 @@ for pen in d_penalty_range:
 	with open(os.path.join(tmp_save_dir,'arguments.pkl'),'wb') as fid:
 		pickle.dump(argdict,fid)
 	with open(os.path.join(tmp_save_dir,'sysParams.pkl'),'wb') as fid:
-		pickle.dump(_sys_parms,fid)
+		pickle.dump({'penalty_coeff':pen, **_sys_parms},fid)
 
 
 
