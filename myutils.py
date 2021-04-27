@@ -2,6 +2,16 @@ import numpy as np
 import sys
 
 
+def getAlgList(mode='all'):
+	if mode == 'all':
+		return ['orig','gd','sec','dev','bayat']
+	elif mode == 'penalty':
+		return ['dev','bayat']
+	elif mode == 'trans':
+		return ['orig','dev']
+	else:
+		sys.exit('Undefined mode {}'.format(mode))
+
 def calc_mi(pzcx,px):
 	pz = pzcx@px
 	inner_ker = (1./pz)[:,None]*pzcx

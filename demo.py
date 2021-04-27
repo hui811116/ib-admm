@@ -16,10 +16,12 @@ import pprint
 
 d_base = os.getcwd()
 
+available_algs = ut.getAlgList()
+datasetlist    = dt.getDatasetList()
 
 parser = argparse.ArgumentParser()
-parser.add_argument("method",type=str,choices=['orig','gd','alm','sec','bayat','dev'],help="select the method")
-parser.add_argument('-dataset',type=str,choices=['synWu'],default='synWu',help='select the dataset')
+parser.add_argument("method",type=str,choices=available_algs,help="select the method")
+parser.add_argument('-dataset',type=str,choices=datasetlist,default='synWu',help='select the dataset')
 parser.add_argument("-beta",type=float,help='the IB beta',default=1.0)
 parser.add_argument('-ntime',type=int,help='run how many times per beta',default=25)
 parser.add_argument('-penalty',type=float,help='penalty coefficient',default=4.0)

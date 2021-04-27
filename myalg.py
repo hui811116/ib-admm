@@ -10,6 +10,9 @@ import time
 
 # MACRO
 
+# TODO: make the algorithm a class
+#       so it is possible to run any algorithm with a single construction
+
 def selectAlg(method,**kwargs):
 	if method =='orig':
 		return ib_orig
@@ -74,6 +77,10 @@ def ib_orig(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	miyz = ut.calc_mi(pycz,pz)
 	return {'prob_zcx':pzcx,'prob_ycz':pycz,'niter':itcnt,'IXZ':mixz,'IYZ':miyz,'valid':True}
 
+# NOTE: this method is an older version of ib_alm_dev
+#       However, the original design is kept in case there is any
+#       new ideas from the original design.
+'''
 def ib_alm_breg(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):	
 	_bk_beta = kwargs['backtracking_beta']
 	_ls_init = kwargs['line_search_init']
@@ -115,19 +122,19 @@ def ib_alm_breg(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	while itcnt < max_iter:
 		itcnt+=1
 		pen_z = pz- pzcx@px
-		'''
+		
 		# stable version
-		mean_grad_pzcx = pzcx_grad_obj(pzcx,pz,_parm_mu_z)
-		ss_pzcx = gd.validStepSize(pzcx,-mean_grad_pzcx, ss_pzcx,_bk_beta)
-		if ss_pzcx == 0:
-			break
-		new_pzcx = pzcx - ss_pzcx * mean_grad_pzcx
-		mean_grad_pz = pz_grad_obj(pz,new_pzcx,_parm_mu_z,pz_delay)
-		ss_pz = gd.validStepSize(pz,-mean_grad_pz,ss_pz,_bk_beta)
-		if ss_pz == 0:
-			break
-		new_pz   = pz   - ss_pz * mean_grad_pz
-		'''
+		#mean_grad_pzcx = pzcx_grad_obj(pzcx,pz,_parm_mu_z)
+		#ss_pzcx = gd.validStepSize(pzcx,-mean_grad_pzcx, ss_pzcx,_bk_beta)
+		#if ss_pzcx == 0:
+		#	break
+		#new_pzcx = pzcx - ss_pzcx * mean_grad_pzcx
+		#mean_grad_pz = pz_grad_obj(pz,new_pzcx,_parm_mu_z,pz_delay)
+		#ss_pz = gd.validStepSize(pz,-mean_grad_pz,ss_pz,_bk_beta)
+		#if ss_pz == 0:
+		#	break
+		#new_pz   = pz   - ss_pz * mean_grad_pz
+		
 		## developing
 		
 		(mean_grad_pzcx,_) = pzcx_grad_obj(pzcx,pz,_parm_mu_z)
@@ -177,14 +184,16 @@ def ib_alm_breg(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 		mixz = 0
 		miyz = 0
 	return {'prob_zcx':pzcx,'prob_z':pz,'niter':itcnt,'IXZ':mixz,'IYZ':miyz,'valid':isvalid}
-
+'''
 def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	_bk_beta = kwargs['backtracking_beta']
 	_ls_init = kwargs['line_search_init']
+	# learning rate scheduler
+	ls_schedule = [(10000,0.5*_ls_init),(25000,0.25*_ls_init),(50000,0.125*_ls_init)]
+	ls_idx = 0
 	rs = RandomState(MT19937(SeedSequence(kwargs['rand_seed'])))
 	# DEBUG
 	# FIXME: tuning the bregman regularization for pzcx, make it a parameter once complete debugging
-	debug_breg_o2 = 0.0
 	# Initial result, this will not improve rate of convergence...
 	
 	(nx,ny) = pxy.shape
@@ -203,7 +212,6 @@ def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	pz_delay = copy.copy(pz)
 	pzcx = rs.rand(nz,nx)
 	pzcx = pzcx * (1./np.sum(pzcx,axis=0))[None,:]
-	pzcx_delay = copy.copy(pzcx)
 	pzcx[:nz,:] = pycx[:,sel_idx[:nz]]
 	pzcy = pzcx@pxcy
 	pzcy = pzcy * (1./np.sum(pzcx,axis=0))[None,:]
@@ -218,21 +226,25 @@ def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	# stepsize control
 	pz_func_obj = ent.getPzFuncObj(beta,px,_parm_c,dbd_omega,use_breg=True)
 	pz_grad_obj = ent.getPzGradObj(beta,px,_parm_c,dbd_omega,use_breg=True)
-	pzcx_func_obj = ent.devPzcxFuncObj(beta,px,py,pxcy,pycx,_parm_c,debug_breg_o2)
-	pzcx_grad_obj = ent.devPzcxGradObj(beta,px,pxcy,pycx,_parm_c,debug_breg_o2)
+	pzcx_func_obj = ent.getPzcxFuncObj(beta,px,py,pxcy,pycx,_parm_c)
+	pzcx_grad_obj = ent.getPzcxGradObj(beta,px,pxcy,pycx,_parm_c)
 	while itcnt < max_iter:
 		itcnt+=1
+		if itcnt == ls_schedule[ls_idx][0]:
+			_ls_init = ls_schedule[ls_idx][1]
+			ls_idx += 1
+			if ls_idx == len(ls_schedule):
+				ls_idx -=1 # stay at the end....
 		pen_z = pz- pzcx@px		
-		(mean_grad_pzcx,_) = pzcx_grad_obj(pzcx,pz,_parm_mu_z,pzcx_delay)
+		(mean_grad_pzcx,_) = pzcx_grad_obj(pzcx,pz,_parm_mu_z)
 		mean_grad_pzcx/=beta
 		# calculate update norm
 		# unit step size for every update
-		#ss_pzcx = gd.validStepSize(pzcx,-mean_grad_pzcx, ss_pzcx,_bk_beta)
 		ss_pzcx = gd.validStepSize(pzcx,-mean_grad_pzcx, _ls_init,_bk_beta)
 		if ss_pzcx == 0:
 			break
 		arm_ss_pzcx = gd.armijoStepSize(pzcx,-mean_grad_pzcx,ss_pzcx,_bk_beta,1e-4,pzcx_func_obj,pzcx_grad_obj,
-									**{'pz':pz,'mu_z':_parm_mu_z,'pzcx_delay':pzcx_delay},)
+									**{'pz':pz,'mu_z':_parm_mu_z},)
 		if arm_ss_pzcx==0:
 			arm_ss_pzcx = ss_pzcx
 		new_pzcx = pzcx - arm_ss_pzcx * mean_grad_pzcx
@@ -242,7 +254,6 @@ def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 
 		(mean_grad_pz,_) = pz_grad_obj(pz,new_pzcx,_parm_mu_z,pz_delay)
 		mean_grad_pz/=beta
-		#ss_pz = gd.validStepSize(pz,-mean_grad_pz,ss_pz,_bk_beta)
 		ss_pz = gd.validStepSize(pz,-mean_grad_pz,_ls_init,_bk_beta)
 		# update probabilities
 		if ss_pz == 0:
@@ -260,7 +271,6 @@ def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 		dtv_pen = 0.5* np.sum(np.fabs(pen_z))
 		# markov chain condition
 		# probability update
-		pzcx_delay = copy.copy(pzcx)
 		pzcy = new_pzcx @ pxcy
 		# FIXME debugging
 		#pzcy = pzcy/ np.sum(pzcy,axis=0)[:,None]
@@ -334,11 +344,6 @@ def ib_gd(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 		if arm_step == 0:
 			arm_step = tmp_step
 		new_pzcx = pzcx - arm_step * mean_grad
-		
-		# theoretically, lambda >= 0. sometimes this is violated
-		# ignore at the start of the gradient descent
-		# in order to make sure the implementation is correct,
-		# you should use naive method to calculate the steepest descent coefficient
 		
 		dtv = 0.5 * np.sum(np.fabs(pz-np.sum(new_pzcx*px[None,:],axis=1)))
 		if dtv< conv_thres:
@@ -528,7 +533,6 @@ def admmib_bayat(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 									**{'pzcy':pzcy,'pz':pz,'mu_z':_parm_mu_z,'mu_zy':_parm_mu_zy},)
 		if arm_ss_pzcx == 0:
 			arm_ss_pzcx = ss_pzcx
-		#arm_ss_pzcx = ss_pzcx
 		new_pzcx = pzcx - arm_ss_pzcx * mean_grad_pzcx
 		# step2: pzcy		
 		(mean_grad_pzcy,_) = bayat_pzcy_grad(pzcy,new_pzcx,_parm_mu_zy)
@@ -541,7 +545,6 @@ def admmib_bayat(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 											**{'pzcx':new_pzcx,'mu_zy':_parm_mu_zy})
 		if arm_ss_pzcy == 0:
 			arm_ss_pzcy = ss_pzcy
-		#arm_ss_pzcy = ss_pzcy
 		new_pzcy = pzcy - arm_ss_pzcy * mean_grad_pzcy
 		
 		# step3: pz
@@ -556,7 +559,6 @@ def admmib_bayat(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 										**{'pzcx':new_pzcx,'mu_z':_parm_mu_z})
 		if arm_ss_pz == 0:
 			arm_ss_pz = ss_pz
-		#arm_ss_pz = ss_pz
 		new_pz = pz - arm_ss_pz * mean_grad_pz
 		# update
 		pz = copy.copy(new_pz)
@@ -579,101 +581,11 @@ def admmib_bayat(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	pen_check = 0.5*np.sum(np.fabs(pz-pzcx@px))
 	pen_check_pzcy = 0.5*(np.sum(np.fabs(pzcy-(pzcx@pxcy)/(np.sum(pzcx@pxcy,axis=0)[None,:])),axis=0))
 	isvalid = (pen_check<=conv_thres and np.all(pen_check_pzcy<=conv_thres))
-	#isvalid = (pen_check<=conv_thres)
+	# FIXME: this can unify the convergence condition but will ignore the other penalty 
+	#        which is not fair in terms of the design given this is also a penalty method.
+	#isvalid = (pen_check<=conv_thres)  
 	
 
 	return {'prob_zcx':pzcx,'prob_z':pz,'prob_zcy':pzcy,
 			'niter':itcnt,'IXZ':mixz,'IYZ':miyz,'valid':isvalid}
 
-
-'''
-# KEPT FOR PAPER REVIEW
-def ib_alm_breg(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):	
-	_bk_beta = kwargs['backtracking_beta']
-	_bk_alpha = kwargs['backtracking_alpha']
-	(nx,ny) = pxy.shape
-	nz = qlevel
-	px = np.sum(pxy,axis=1)
-	py = np.sum(pxy,axis=0)
-	py = py/np.sum(py)
-	pycx = np.transpose((1./px)[:,None]*pxy)
-	pxcy = pxy*(1./py)[None,:]
-	# on IB, the initialization matters
-	# use random start
-	sel_idx = np.random.permutation(nx)
-	pz = px[sel_idx[:qlevel]]
-	pz /= np.sum(pz)
-	pz_delay = copy.copy(pz)
-	pzcx = np.random.rand(nz,nx)
-	pzcx = pzcx * (1./np.sum(pzcx,axis=0))[None,:]
-	pzcx[:nz,:] = pycx
-	pzcy = pzcx@pxcy
-	# ready to start
-	itcnt = 0
-	# gradient descent control
-	_step_size = 1.0
-	ss_pzcx = copy.copy(_step_size)
-	ss_pz = copy.copy(_step_size)
-	# defined in global variables
-	isvalid = True
-	_parm_c = kwargs['penalty_coeff']
-	_parm_mu_z = np.zeros((nz,))
-	# bregman divergence parameter
-	dbd_omega = kwargs['breg_omega']
-	# stepsize control
-	pz_func_obj = ent.getPzFuncObj(beta,px,_parm_c,dbd_omega,use_breg=True)
-	pz_grad_obj = ent.getPzGradObj(beta,px,_parm_c,dbd_omega,use_breg=True)
-	pzcx_func_obj = ent.getPzcxFuncObj(beta,px,py,pxcy,pycx,_parm_c)
-	
-	while itcnt < max_iter:
-		itcnt+=1
-		pen_z = pz- pzcx@px
-		grad_pzcx = (np.log(pzcx)+1-beta-beta*np.transpose(pycx.T@np.log(pzcy.T))
-					-_parm_mu_z[:,np.newaxis]-_parm_c*pen_z[:,np.newaxis])*px[None,:]
-		mean_grad_pzcx = grad_pzcx - np.mean(grad_pzcx,axis=0) # uniform mean, could be expectation from pzcx?
-		# calculate update norm
-		ss_pzcx = gd.validStepSize(pzcx,-1 * mean_grad_pzcx, ss_pzcx,_bk_beta)
-		if ss_pzcx == 0:
-			isvalid = False
-			break
-		new_pzcx = pzcx - ss_pzcx * mean_grad_pzcx
-		# DEBUG: recording the improvement
-		tmp_cvx_val = pz_func_obj(pz,new_pzcx,_parm_mu_z,pz_delay)
-		mean_grad_pz = pz_grad_obj(pz,new_pzcx,_parm_mu_z,pz_delay)
-		tmp_dict = {
-			'pzcx': new_pzcx,
-			'mu_z': _parm_mu_z,
-			'pz_last': pz_delay,
-		}
-		ss_pz = gd.validStepSize(pz,-mean_grad_pz,ss_pz,_bk_beta)
-		# update probabilities
-		if ss_pz == 0:
-			isvalid = False
-			break
-		new_pz   = pz   - ss_pz * mean_grad_pz
-		# for fair comparison, use total variation distance as termination criterion
-		pen_z = new_pz - new_pzcx@px
-		dtv_pen = 0.5* np.sum(np.fabs(pen_z))
-		# markov chain condition
-		# probability update
-		pzcy = new_pzcx @ pxcy
-		pzcx = new_pzcx
-		pz_delay = copy.copy(pz)
-		pz = new_pz
-		# mu update
-		_parm_mu_z = _parm_mu_z + _parm_c * pen_z
-		# ALM c update
-		if dtv_pen < conv_thres:
-			break
-	mixz = ut.calc_mi(pzcx,px)
-	miyz = ut.calc_mi(pzcy,py)
-	pen_check = 0.5*np.sum(np.fabs(pz-pzcx@px))
-	if pen_check>=conv_thres:
-		isvalid = False
-	if not isvalid:
-		if pen_check<conv_thres:
-			print('WARNING: INVALID but the penalty converged')
-		mixz = 0
-		miyz = 0
-	return {'prob_zcx':pzcx,'prob_z':pz,'niter':itcnt,'IXZ':mixz,'IYZ':miyz,'valid':isvalid}
-'''

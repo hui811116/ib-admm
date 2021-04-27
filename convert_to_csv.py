@@ -24,8 +24,6 @@ for files in os.listdir(filedir):
 		with open(os.path.join(filedir,files),'rb') as fid:
 			results = pickle.load(fid)
 
-#print(arguments)
-#print(sysParams)
 beta_range = np.geomspace(arguments['minbeta'],arguments['maxbeta'],num=arguments['numbeta'])
 
 # header to parse

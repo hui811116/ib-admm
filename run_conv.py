@@ -15,22 +15,20 @@ import graddescent as gd
 import pprint
 
 d_base = os.getcwd()
-
-
-available_algs = ['alm','sec','dev','bayat']
+available_algs = ut.getAlgList(mode='penalty')
+datasetlist    = dt.getDatasetList()
 
 parser = argparse.ArgumentParser()
 parser.add_argument("method",type=str,choices=available_algs,help="select the method")
 parser.add_argument('output',type=str,help='specify the name of the directory to save results')
-parser.add_argument('-dataset',type=str,choices=['synWu','synMy'],default='synWu',help='select the dataset')
+parser.add_argument('-dataset',type=str,choices=datasetlist,default='synWu',help='select the dataset')
 parser.add_argument("-minbeta",type=float,help='the minimum beta to sweep',default=1.0)
 parser.add_argument("-maxbeta",type=float,help='the maximum beta to sweep',default=10.0)
 parser.add_argument('-numbeta',type=int,help='the geometric spacing between beta_min and beta_max',default=20)
 parser.add_argument('-ntime',type=int,help='run how many times per beta',default=100)
-#parser.add_argument('-penalty',type=float,help='penalty coefficient',default=4.0)
 parser.add_argument('-minpenalty',type=float,help='min penalty coefficient',default=4.0)
-parser.add_argument('-maxpenalty',type=float,help='max penalty coefficient',default=256.0)
-parser.add_argument('-steppenalty',type=float,help="the penalty range between penalty_min and penalty_max",default=8)
+parser.add_argument('-maxpenalty',type=float,help='max penalty coefficient',default=128.0)
+parser.add_argument('-steppenalty',type=float,help="the penalty range between penalty_min and penalty_max",default=4)
 
 parser.add_argument('-omega',type=float,help='Bregman Regularization coefficient',default=2.0)
 parser.add_argument('-thres',type=float,help='convergence threshold',default=1e-5)
@@ -46,14 +44,10 @@ argdict = vars(args)
 
 # fixed parameters
 _sys_parms = {
-	#'backtracking_alpha': 0.45,
 	'backtracking_beta' : args.sscale,
 	'line_search_init'  : args.sinit,
 	'max_iter'          : args.maxiter,
 	'conv_thres'        : args.thres,
-	#'penalty_coeff'     : args.penalty,
-	#'penalty_min'       : args.minpenalty,
-	#'penalty_max'       : args.maxpenalty,
 	'breg_omega'        : args.omega,
 	'rand_seed'         : args.seed,
 }
@@ -121,19 +115,3 @@ for pen in d_penalty_range:
 	with open(os.path.join(tmp_save_dir,'sysParams.pkl'),'wb') as fid:
 		pickle.dump({'penalty_coeff':pen, **_sys_parms},fid)
 
-
-
-'''
-d_file_name = ut.genOutName(**argdict) + '.pkl'
-d_save_dir = os.path.join(d_base,args.output)
-if not os.path.isdir(d_save_dir):
-	os.makedirs(d_save_dir,exist_ok=True)
-
-print('saving the result to:{}/{}'.format(d_save_dir,d_file_name))
-with open(os.path.join(d_save_dir,d_file_name),'wb') as fid:
-	pickle.dump(result_all,fid)
-with open(os.path.join(d_save_dir,'arguments.pkl'),'wb') as fid:
-	pickle.dump(argdict,fid)
-with open(os.path.join(d_save_dir,'sysParams.pkl'),'wb') as fid:
-	pickle.dump(_sys_parms,fid)
-'''

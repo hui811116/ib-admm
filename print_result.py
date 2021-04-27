@@ -14,17 +14,15 @@ parser.add_argument("filedir",type=str,help='specify the directory to be convert
 parser.add_argument('-save',help='printing the log and parameters along the execution',action='count',default=0)
 parser.add_argument('-conv',help='Exporting figures for presentation',action='count',default=0)
 parser.add_argument('-mi',help='Plotting the Mutual Information and Information Plane',action='count',default=0)
+parser.add_argument('-omega',help='Display the surface of omega versus penalty of ALM',action='count',default=0)
 
 args = parser.parse_args()
 
 inputdir = os.path.join(d_base,args.filedir)
 
-
-
 mk_sets = ["^","s","+",".","x","o"]
 ls_sets = [":","--","-.","-"]
 color_sets = ["g","m","k","r","b","c",'y']
-
 
 fs_s = {
 	'label_fs': 16,
@@ -42,6 +40,8 @@ def extractData(results):
 	for bidx, item_beta in enumerate(results):
 		beta = item_beta['beta']
 		beta_result = item_beta['result']
+		if item_beta.get('avg_conv',False):
+			print('beta,{:5.3f}, avg_conv,{:5.3f}'.format(beta,item_beta['avg_conv']))
 		ncnt = len(beta_result)
 		nvalid = 0
 		for nidx, nresult in enumerate(beta_result):
@@ -51,7 +51,8 @@ def extractData(results):
 				tmp_row.append(float(nresult[ele]))
 			collect_all.append(tmp_row)
 		#print('beta={:6.2f}; convergence rate--{:10.4f}'.format(beta,nvalid/ncnt))
-		nconv_rate.append([beta,nvalid/ncnt])
+		#nconv_rate.append([beta,nvalid/ncnt])
+		nconv_rate.append([beta,item_beta['avg_conv']])
 	npresult = np.array(collect_all)
 	nconv_res =  np.array(nconv_rate)
 	return (npresult, nconv_res)
@@ -72,6 +73,18 @@ def readFolder(filedir):
 	if not enddir:
 		print('found no arguments')
 		return
+	if not arguments.get('penalty',False):
+		# attempt to collect from file name
+		flist = os.path.split(filedir)
+		tmp_fname =flist[-1] 
+		if "_c" in tmp_fname:
+			cstr_idx = tmp_fname.find("c")
+			penalty = float(tmp_fname[cstr_idx+1:tmp_fname.find("_",cstr_idx+1)])
+		else:
+			sys.exit('Fatal error, no penalty argument found')
+	else:
+		penalty = arguments['penalty']
+
 	beta_range = np.geomspace(arguments['minbeta'],arguments['maxbeta'],num=arguments['numbeta'])
 	d_pxy_info = dt.datasetSelect(arguments['dataset'])
 	# compute the H(Y) and I(X;Y)
@@ -83,8 +96,8 @@ def readFolder(filedir):
 	tmpdict = {
 		'data':results, 'pxy':d_pxy,'mixy':mixy,'beta_range':beta_range,
 		'method':arguments['method'],'ntime':arguments['ntime'],
-		'penalty':arguments['penalty'],'omega':arguments['omega'],
-		'thres':arguments['thres'],
+		'penalty':penalty,'omega':arguments['omega'],
+		'thres':arguments['thres'],'dataset':arguments['dataset'],'output':arguments['output'],
 	}
 	return tmpdict
 
@@ -112,6 +125,7 @@ def miResult(filedir):
 ## for plotting convergence specifically
 def convResult(filedir):
 	readout = readFolder(filedir)
+	print('method,{},penalty,{:5.3f},omega,{:5.3f}'.format(readout['method'],readout['penalty'],readout['omega']))
 	results = readout['data']
 	res_hdr = ['IXZ','IYZ','niter','valid']
 	(npresult,nconv_res) = extractData(results)
@@ -129,13 +143,14 @@ def convResult(filedir):
 ##
 def readResult(filedir=".",savedir=".",collect=False):
 	readout = readFolder(filedir)
+	mixy = readout['mixy']
 	results = readout['data']
 	print('Estimated I(X:Y):{:.6f}'.format(readout['mixy']))
 
 	res_hdr = ['IXZ','IYZ','niter','valid']
 	
 	(npresult,nconv_res) = extractData(results)
-	fig_label = ut.getFigLabel(**arguments)
+	fig_label = ut.getFigLabel(**readout)
 	# plotting (scatter)
 	# 1. IB curve: I(Y;Z) versus I(X;Z)
 	# 2. MI:       I(Y;Z), I(X;Z) versus beta
@@ -146,7 +161,7 @@ def readResult(filedir=".",savedir=".",collect=False):
 	fig, (ax1,ax2,ax3,ax4) = plt.subplots(1,4)
 	fig.set_size_inches(16,6)
 	title_tex = r'Method:{},Name:{},Data:{},Conv=${:.3e}$'.format(
-		arguments['method'],arguments['output'],arguments['dataset'],arguments['thres'])
+		readout['method'],readout['output'],readout['dataset'],readout['thres'])
 	fig.suptitle(title_tex)
 	# SUBFIGURE 1
 	ax1.grid()
@@ -328,6 +343,55 @@ elif args.mi:
 	plt.show()
 	plt.close()
 	
+
+elif args.omega:
+	# this will only be one method,
+	# the goal is to extract each avg conv. prob. / avg time
+	# Note: there are previous version data that doesn't store penalty_coeff in system_param
+	all_result = []
+	for files in os.listdir(inputdir):
+		fullname = os.path.join(inputdir,files)
+		if os.path.isdir(fullname):
+			oneresult = convResult(fullname)
+			# dict_keys(['beta', 'percent', 'method', 'penalty', 'omega'])
+			all_result.append([oneresult['penalty'],np.array(oneresult['percent'])])
+	all_result.sort(key=lambda x:x[0])
+	#print(all_result[0:10])
+	#sys.exit()
+	beta_range = np.array(oneresult['beta'])
+	penalty_range =[]
+	for item in all_result:
+		penalty_range.append(item[0])
+	penalty_range = np.array(penalty_range)
+	prob_conv = np.zeros((len(beta_range),len(penalty_range)))
+	for bi in range(len(beta_range)):
+		for pi in range(len(penalty_range)):
+			prob_conv[bi,pi] = all_result[pi][1][bi,1]
+	fig = plt.figure()
+	ax = plt.axes(projection='3d')
+	s_x=[]
+	s_y=[]
+	s_z=[]
+	for bi in range(len(beta_range)):
+		for pi in range(len(penalty_range)):
+			s_x.append(beta_range[bi])
+			s_y.append(penalty_range[pi])
+			s_z.append(prob_conv[bi,pi])
+	ax.scatter3D(np.array(s_x),np.array(s_y),100*np.array(s_z),c=np.array(s_z))
+	#X,Y = np.meshgrid(beta_range,penalty_range)
+	#surf = ax.plot_surface(X,Y,100*prob_conv.T,cmap='viridis',edgecolor='none')
+	ax.set_xlabel(r"$\beta$",fontsize=fs_s['label_fs'])
+	ax.set_ylabel(r"penalty coeff. $c$",fontsize=fs_s['label_fs'])
+	ax.set_zlabel(r"convergent cases (%)",fontsize=fs_s['label_fs'])
+	if oneresult.get('omega',False):
+		titletex = r"Method:{},$\omega$={:.2f}".format(oneresult['method'],oneresult['omega'])
+	else:
+		titletex = r"Method:{}".format(oneresult['method'])
+
+	ax.set_title(titletex,fontsize=fs_s['title_fs'])
+	plt.tight_layout()
+	plt.show()
+	plt.close()
 
 
 else:

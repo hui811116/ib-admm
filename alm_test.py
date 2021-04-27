@@ -14,9 +14,12 @@ import copy
 from numpy.random import MT19937
 from numpy.random import RandomState, SeedSequence
 
+available_algs = ut.getAlgList(mode='trans')
+datasetlist    = dt.getDatasetList()
+
 parser = argparse.ArgumentParser()
-parser.add_argument("method",type=str,choices=['orig','dev'],help="select the method")
-parser.add_argument('-dataset',type=str,choices=['synWu'],default='synWu',help='select the dataset')
+parser.add_argument("method",type=str,choices=available_algs,help="select the method")
+parser.add_argument('-dataset',type=str,choices=datasetlist,default='synWu',help='select the dataset')
 parser.add_argument("-beta",type=float,help='the IB beta',default=1.0)
 #parser.add_argument('-ntime',type=int,help='run how many times per beta',default=25)
 parser.add_argument('-penalty',type=float,help='penalty coefficient',default=4.0)
@@ -86,16 +89,20 @@ def ib_orig(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	# monitoring the MIXZ, MIYZ
 	mixz = ut.calc_mi(pzcx,px)
 	miyz = ut.calc_mi(pycz,pz)
+	pen_check = 0.5 * np.sum(np.fabs(pz-pzcx@px))
 	return {'prob_zcx':pzcx,'prob_ycz':pycz,'niter':itcnt,
 			'IXZ':mixz,'IYZ':miyz,'valid':True,
 			'pzcx_min':rec_pzcx_min[:itcnt],
 			'pz_min'  :rec_pz_min[:itcnt],
 			'pzcy_min':rec_pzcy_min[:itcnt],
+			'end_penalty':pen_check
 			}
 
 def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	_bk_beta = kwargs['backtracking_beta']
 	#_ls_init = kwargs['line_search_init']
+	ls_schedule = [(10000,0.01),(25000,0.005),(50000,0.001)]
+	ls_idx = 0
 	_ls_init = 0.05
 	rs = RandomState(MT19937(SeedSequence(kwargs['rand_seed'])))
 	# DEBUG
@@ -137,27 +144,39 @@ def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	# bregman divergence parameter
 	dbd_omega = kwargs['breg_omega']
 	# stepsize control
+	#pz_func_obj = ent.getPzFuncObj(beta,px,_parm_c,dbd_omega,use_breg=True)
+	#pz_grad_obj = ent.getPzGradObj(beta,px,_parm_c,dbd_omega,use_breg=True)
+	#pzcx_func_obj = ent.devPzcxFuncObj(beta,px,py,pxcy,pycx,_parm_c,debug_breg_o2)
+	#pzcx_grad_obj = ent.devPzcxGradObj(beta,px,pxcy,pycx,_parm_c,debug_breg_o2)
 	pz_func_obj = ent.getPzFuncObj(beta,px,_parm_c,dbd_omega,use_breg=True)
 	pz_grad_obj = ent.getPzGradObj(beta,px,_parm_c,dbd_omega,use_breg=True)
-	pzcx_func_obj = ent.devPzcxFuncObj(beta,px,py,pxcy,pycx,_parm_c,debug_breg_o2)
-	pzcx_grad_obj = ent.devPzcxGradObj(beta,px,pxcy,pycx,_parm_c,debug_breg_o2)
+	pzcx_func_obj = ent.getPzcxFuncObj(beta,px,py,pxcy,pycx,_parm_c)
+	pzcx_grad_obj = ent.getPzcxGradObj(beta,px,pxcy,pycx,_parm_c)
 	while itcnt < max_iter:
 		# RECORD
 		rec_pz_min[itcnt] = np.amin(pz)
 		rec_pzcx_min[itcnt] = np.amin(pzcx)
 		rec_pzcy_min[itcnt] = np.amin(pzcy)
 		itcnt+=1
+		if itcnt == ls_schedule[ls_idx][0]:
+			_ls_init = ls_schedule[ls_idx][1]
+			ls_idx += 1
+			if ls_idx == len(ls_schedule):
+				ls_idx -= 1 # stay at the end...
 		pen_z = pz- pzcx@px		
-		(mean_grad_pzcx,_) = pzcx_grad_obj(pzcx,pz,_parm_mu_z,pzcx_delay)
-		mean_grad_pzcx/=beta
+		#(mean_grad_pzcx,_) = pzcx_grad_obj(pzcx,pz,_parm_mu_z,pzcx_delay)
+		(mean_grad_pzcx,_) = pzcx_grad_obj(pzcx,pz,_parm_mu_z)
+		mean_grad_pzcx /= beta
 		# calculate update norm
 		# unit step size for every update
 		#ss_pzcx = gd.validStepSize(pzcx,-mean_grad_pzcx, ss_pzcx,_bk_beta)
 		ss_pzcx = gd.validStepSize(pzcx,-mean_grad_pzcx, _ls_init,_bk_beta)
 		if ss_pzcx == 0:
 			break
+		#arm_ss_pzcx = gd.armijoStepSize(pzcx,-mean_grad_pzcx,ss_pzcx,_bk_beta,1e-4,pzcx_func_obj,pzcx_grad_obj,
+		#							**{'pz':pz,'mu_z':_parm_mu_z,'pzcx_delay':pzcx_delay},)
 		arm_ss_pzcx = gd.armijoStepSize(pzcx,-mean_grad_pzcx,ss_pzcx,_bk_beta,1e-4,pzcx_func_obj,pzcx_grad_obj,
-									**{'pz':pz,'mu_z':_parm_mu_z,'pzcx_delay':pzcx_delay},)
+									**{'pz':pz,'mu_z':_parm_mu_z},)
 		if arm_ss_pzcx==0:
 			arm_ss_pzcx = ss_pzcx
 		new_pzcx = pzcx - arm_ss_pzcx * mean_grad_pzcx
@@ -190,7 +209,7 @@ def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 
 
 		# probability update
-		pzcx_delay = copy.copy(pzcx)
+		#pzcx_delay = copy.copy(pzcx)
 		pzcy = new_pzcx @ pxcy
 		pzcx = new_pzcx
 		pz_delay = copy.copy(pz)
@@ -201,14 +220,15 @@ def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 			break
 	mixz = ut.calc_mi(pzcx,px)
 	miyz = ut.calc_mi(pzcy,py)
-	pen_check = 0.5*np.sum(np.fabs(pz-np.sum(pzcx*px[None,:],axis=1) ))
+	#pen_check = 0.5*np.sum(np.fabs(pz-np.sum(pzcx*px[None,:],axis=1) ))
+	pen_check = 0.5 * np.sum(np.fabs(pz-pzcx@px))
 	isvalid = (pen_check<=conv_thres)
 	
 	return {'prob_zcx':pzcx,'prob_z':pz,'niter':itcnt,
 			'IXZ':mixz,'IYZ':miyz,'valid':isvalid,
 			'pzcx_min':rec_pzcx_min[:itcnt],
 			'pz_min'  :rec_pz_min[:itcnt],
-			'pzcy_min':rec_pzcy_min[:itcnt],}
+			'pzcy_min':rec_pzcy_min[:itcnt],'end_penalty':pen_check}
 
 # ------------------------------------------------------------------------------------------------------
 # main loop
@@ -253,7 +273,7 @@ pxcy = d_pxy@np.diag(1./py)
 algargs = {'beta':d_beta,'qlevel':d_pxy.shape[1],**_sys_parms,}
 ut.checkAlgArgs(**algargs)
 ib_res = d_alg(**{'pxy':d_pxy,**algargs})
-print('trial:beta={beta:>6.2f}, IXZ={IXZ:<8.4f}, IYZ={IYZ:<8.4f}, niter={niter:<5d}, converge={valid:<5}'.format(
+print('trial:beta={beta:>6.2f}, IXZ={IXZ:<8.4f}, IYZ={IYZ:<8.4f}, niter={niter:<5d}, converge={valid:<5}, end_penalty={end_penalty:<5.4e}'.format(
 		**{'beta':d_beta,**ib_res}))
 
 # plotting the results

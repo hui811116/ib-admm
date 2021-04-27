@@ -17,12 +17,13 @@ import pprint
 d_base = os.getcwd()
 
 
-available_algs = ['orig','gd','alm','sec','dev','bayat']
+available_algs = ut.getAlgList()
+datasetlist    = dt.getDatasetList()
 
 parser = argparse.ArgumentParser()
 parser.add_argument("method",type=str,choices=available_algs,help="select the method")
 parser.add_argument('output',type=str,help='specify the name of the directory to save results')
-parser.add_argument('-dataset',type=str,choices=['synWu','synMy'],default='synWu',help='select the dataset')
+parser.add_argument('-dataset',type=str,choices=datasetlist,default='synWu',help='select the dataset')
 parser.add_argument("-minbeta",type=float,help='the minimum beta to sweep',default=1.0)
 parser.add_argument("-maxbeta",type=float,help='the maximum beta to sweep',default=10.0)
 parser.add_argument('-numbeta',type=int,help='the geometric spacing between beta_min and beta_max',default=20)
@@ -62,24 +63,32 @@ d_alg = alg.selectAlg(args.method)
 print('Method:{}'.format(args.method))
 
 def runSim(ibalg,betarange,pxy,nrun,**kwargs):
+	status_template = kwargs['status_tex']
 	result_all = []
 	time_start = time.time()
 	for bidx,beta in enumerate(betarange):
-		print('beta:{:<50.4f}'.format(beta))
 		algargs = {'beta':beta,'qlevel':pxy.shape[1],**kwargs,}
 		ut.checkAlgArgs(**algargs)
+		tmp_status = status_template.format(**algargs)
 		tmp_result = []
+		time_per_run = time.time()
+		conv_cnt = 0
 		for it in range(nrun):
-			print('\rCurrent progress: {:4.2f}% ({:>5}/{:>5} iterations)'.format(100*it/nrun,it,nrun),end='',flush=True)
+			print('\rCurrent status: {}{:>6.2f}% ({:>5}/{:>5} iterations)'.format(
+				tmp_status,100*it/nrun,it,nrun),end='',flush=True)
 			ib_res = ibalg(**{'pxy':pxy,**algargs})
+			conv_cnt += int(ib_res['valid'])
 			tmp_result.append(ib_res)
-		print('{:<50}'.format(''),end='\r',flush=True)
-		result_all.append({'beta':beta,'result':tmp_result})
-	print(' '*100+'\r',end='',flush=True)
+		time_per_run = (time.time()-time_per_run)/nrun
+		avg_conv_rate= conv_cnt / nrun
+		print('\r{:<200}'.format(tmp_status+'complete'),end='\r',flush=True)
+		result_all.append({'beta':beta,'result':tmp_result,'avg_time':time_per_run,'avg_conv':avg_conv_rate}) 
+	print(' '*200+'\r',end='',flush=True)
 	print('time elapsed: {:>16.8f} seconds'.format(time.time()-time_start))
 	return result_all
 # main algorithm
-result_all = runSim(d_alg,d_beta_range,d_pxy_info['pxy'],args.ntime,**_sys_parms)
+tmp_status   = ut.genStatus(**argdict)
+result_all = runSim(d_alg,d_beta_range,d_pxy_info['pxy'],args.ntime,**{'status_tex':tmp_status,**_sys_parms})
 
 d_file_name = ut.genOutName(**argdict) + '.pkl'
 d_save_dir = os.path.join(d_base,args.output)

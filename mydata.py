@@ -1,9 +1,8 @@
 import numpy as np
 import sys
 
-# macro definitions
-_NAMEOFDATASET=['synWu', 'synMy']
-
+def getDatasetList():
+	return ['synWu','synMy']
 
 def datasetSelect(name,**kwargs):
 	if name == 'synWu':
@@ -23,10 +22,3 @@ def synMy():
 	gbl_px = np.ones(3,)/3
 	gbl_pxy = (gbl_pycx*gbl_px[None,:]).T
 	return {'pxy':gbl_pxy,'nx':3, 'ny':3}
-
-'''
-def randDate():
-	gbl_pycx = np.array([[],[],[],[]])
-	return {'pxy':gbl_pxy,'nx':4,'ny':3}
-'''
-
