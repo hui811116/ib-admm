@@ -100,14 +100,14 @@ def ib_orig(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 
 def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	_bk_beta = kwargs['backtracking_beta']
-	#_ls_init = kwargs['line_search_init']
-	ls_schedule = [(10000,0.01),(25000,0.005),(50000,0.001)]
+	ls_schedule = [(10000,0.05),(25000,0.01),(50000,0.005)]
 	ls_idx = 0
-	_ls_init = 0.05
+	_ls_init = 0.1
 	rs = RandomState(MT19937(SeedSequence(kwargs['rand_seed'])))
 	# DEBUG
 	# FIXME: tuning the bregman regularization for pzcx, make it a parameter once complete debugging
 	debug_breg_o2 = 0.0
+	#debug_acc_dual = 1.414
 	# Initial result, this will not improve rate of convergence...
 	
 	(nx,ny) = pxy.shape
@@ -135,6 +135,10 @@ def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	rec_pzcx_min = np.zeros(max_iter,)
 	rec_pz_min   = np.zeros(max_iter,)
 	rec_pzcy_min = np.zeros(max_iter,)
+	rec_pz_hat_min = np.zeros(max_iter,)
+
+	rec_hz_zcx = np.zeros(max_iter,)
+	rec_hz     = np.zeros(max_iter,)
 
 	itcnt = 0
 	# gradient descent control
@@ -157,6 +161,9 @@ def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 		rec_pz_min[itcnt] = np.amin(pz)
 		rec_pzcx_min[itcnt] = np.amin(pzcx)
 		rec_pzcy_min[itcnt] = np.amin(pzcy)
+		rec_pz_hat_min[itcnt]=np.amin(pzcx@px)
+		rec_hz_zcx[itcnt] = np.sum(-pzcx@px * np.log(pzcx@px))
+		rec_hz[itcnt]     = np.sum(-pz*np.log(pz))
 		itcnt+=1
 		if itcnt == ls_schedule[ls_idx][0]:
 			_ls_init = ls_schedule[ls_idx][1]
@@ -215,6 +222,7 @@ def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 		pz_delay = copy.copy(pz)
 		pz = new_pz
 		# mu update
+		#_parm_mu_z = _parm_mu_z + debug_acc_dual * _parm_c * pen_z
 		_parm_mu_z = _parm_mu_z + _parm_c * pen_z
 		if dtv_pen < conv_thres:
 			break
@@ -228,7 +236,11 @@ def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 			'IXZ':mixz,'IYZ':miyz,'valid':isvalid,
 			'pzcx_min':rec_pzcx_min[:itcnt],
 			'pz_min'  :rec_pz_min[:itcnt],
-			'pzcy_min':rec_pzcy_min[:itcnt],'end_penalty':pen_check}
+			'pz_hat_min':rec_pz_hat_min[:itcnt],
+			'pzcy_min':rec_pzcy_min[:itcnt],
+			'hz_zcx':rec_hz_zcx[:itcnt],
+			'hz':rec_hz[:itcnt],
+			'end_penalty':pen_check}
 
 # ------------------------------------------------------------------------------------------------------
 # main loop
@@ -267,6 +279,8 @@ else:
 d_pxy = d_pxy_info['pxy']
 px = np.sum(d_pxy,axis=1)
 py = np.sum(d_pxy,axis=0)
+entx = np.sum(-px*np.log(px))
+enty = np.sum(-py*np.log(py))
 pycx = np.transpose(np.diag(1./px)@d_pxy)
 pxcy = d_pxy@np.diag(1./py)
 # for clarity, only use single run
@@ -279,26 +293,65 @@ print('trial:beta={beta:>6.2f}, IXZ={IXZ:<8.4f}, IYZ={IYZ:<8.4f}, niter={niter:<
 # plotting the results
 
 xx = np.arange(0,ib_res['niter'])
-#plt.plot(xx,ib_res['pzcx_min'],'-rx',label=r"min $p_{z|x}$")
-plt.plot(xx,ib_res['pz_min'],'-b',label=r"min $p_z,Bp_{z|x}$")
-#plt.plot(xx,ib_res['pzcy_min'],'-d',color='gray',label=r"min $p_{z|y}$")
-plt.plot(xx,np.repeat(np.amin(pxcy),ib_res['niter']),'--m',label=r"min $p_{x|y}$")
-plt.plot(xx,np.repeat(np.amin(pycx),ib_res['niter']),'-.k',label=r"min $p_{y|x}$")
-plt.plot(xx,np.repeat(np.amin(px),ib_res['niter']),'--c',label=r"min $p_x$")
-plt.plot(xx,np.repeat(np.amin(py),ib_res['niter']),':g',label=r"min $p_y$")
-plt.plot(xx,np.repeat(np.amin(pycx/py[:,None]),ib_res['niter']),'-.y',label=r"min $p_{y|x}/p_{y}$")
-#plt.plot(xx,np.repeat(np.amin(pycx/py[:,None]),ib_res['niter'])/ib_res['pz_min'],'-.',color='purple',label=r"inf/min")
-
-plt.yscale('log')
-plt.legend(fontsize=12)
-plt.grid()
 title_tex =r"$\beta={:.2f},c={:.1f},\omega={:.1f}$, Converged={:}".format(d_beta,
 	argdict['penalty'],argdict['omega'],ib_res['valid'])
-plt.title(title_tex,fontsize=18)
-plt.xlabel("Iteration",fontsize=14)
-plt.ylabel("Min probability",fontsize=14)
-plt.xticks(fontsize=12)
-plt.yticks(fontsize=12)
-plt.show()
+
+if args.method == "dev":
+	fig, (ax1,ax2) = plt.subplots(1,2)
+	fig.suptitle(title_tex,fontsize=14)
+	fig.set_size_inches(10,4)
+	ax1.grid()
+	ax1.plot(xx,ib_res['pz_min'],'-b',label=r"min $p_z$")
+	ax1.plot(xx,ib_res['pz_hat_min'],'-r',label=r"min $\hat{p}_z$")
+	#plt.plot(xx,ib_res['pzcy_min'],'-d',color='gray',label=r"min $p_{z|y}$")
+	ax1.plot(xx,np.repeat(np.amin(pxcy),ib_res['niter']),'--m',label=r"min $p_{x|y}$")
+	ax1.plot(xx,np.repeat(np.amin(pycx),ib_res['niter']),'-.k',label=r"min $p_{y|x}$")
+	ax1.plot(xx,np.repeat(np.amin(px),ib_res['niter']),'--c',label=r"min $p_x$")
+	ax1.plot(xx,np.repeat(np.amin(py),ib_res['niter']),':g',label=r"min $p_y$")
+	ax1.plot(xx,np.repeat(np.amin(pycx/py[:,None]),ib_res['niter']),'-.y',label=r"min $p_{y|x}/p_{y}$")
+	ax1.set_yscale('log')
+	ax1.legend(fontsize=12)
+	ax1.set_xlabel("Iteration",fontsize=14)
+	ax1.set_ylabel("Min probability",fontsize=14)
+	ax1.tick_params(labelsize=12)
+	#ax1.set_xlim([ib_res['niter']-100,ib_res['niter']])
+	#ax1.set_xlim([0,1000])
+	#ax1.set_ytickslabels(fontsize=12)
+
+	# plotting entropy
+	ax2.grid()
+	ax2.plot(xx,ib_res['hz_zcx'],'-r',label=r"$H(\hat{Z})$")
+	ax2.plot(xx,ib_res['hz'],':b',label=r"$H(Z)$")
+	ax2.plot(xx,np.repeat(entx,ib_res['niter']),'--m',label=r"$H(X)$")
+	ax2.plot(xx,np.repeat(enty,ib_res['niter']),'-.k',label=r"$H(Y)$")
+	ax2.legend(fontsize=12,loc='right')
+	ax2.set_ylabel(r"Entropy $H(Z)$",fontsize=14)
+	ax2.set_xlabel("Iteration",fontsize=14)
+
+	plt.tight_layout()
+	plt.show()
+
+else:
+	#plt.plot(xx,ib_res['pzcx_min'],'-rx',label=r"min $p_{z|x}$")
+	plt.plot(xx,ib_res['pz_min'],'-b',label=r"min $p_z,Bp_{z|x}$")
+	#plt.plot(xx,ib_res['pzcy_min'],'-d',color='gray',label=r"min $p_{z|y}$")
+	plt.plot(xx,np.repeat(np.amin(pxcy),ib_res['niter']),'--m',label=r"min $p_{x|y}$")
+	plt.plot(xx,np.repeat(np.amin(pycx),ib_res['niter']),'-.k',label=r"min $p_{y|x}$")
+	plt.plot(xx,np.repeat(np.amin(px),ib_res['niter']),'--c',label=r"min $p_x$")
+	plt.plot(xx,np.repeat(np.amin(py),ib_res['niter']),':g',label=r"min $p_y$")
+	plt.plot(xx,np.repeat(np.amin(pycx/py[:,None]),ib_res['niter']),'-.y',label=r"min $p_{y|x}/p_{y}$")
+	#plt.plot(xx,np.repeat(np.amin(pycx/py[:,None]),ib_res['niter'])/ib_res['pz_min'],'-.',color='purple',label=r"inf/min")
+
+	plt.yscale('log')
+	plt.legend(fontsize=12)
+	plt.grid()
+	title_tex =r"$\beta={:.2f},c={:.1f},\omega={:.1f}$, Converged={:}".format(d_beta,
+		argdict['penalty'],argdict['omega'],ib_res['valid'])
+	plt.title(title_tex,fontsize=18)
+	plt.xlabel("Iteration",fontsize=14)
+	plt.ylabel("Min probability",fontsize=14)
+	plt.xticks(fontsize=12)
+	plt.yticks(fontsize=12)
+	plt.show()
 
 

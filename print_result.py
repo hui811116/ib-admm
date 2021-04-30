@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import pprint
 import mydata as dt
 import myutils as ut
+import scipy as sp
 d_base = os.getcwd()
 
 parser = argparse.ArgumentParser()
@@ -15,6 +16,8 @@ parser.add_argument('-save',help='printing the log and parameters along the exec
 parser.add_argument('-conv',help='Exporting figures for presentation',action='count',default=0)
 parser.add_argument('-mi',help='Plotting the Mutual Information and Information Plane',action='count',default=0)
 parser.add_argument('-omega',help='Display the surface of omega versus penalty of ALM',action='count',default=0)
+parser.add_argument('-mat',help='Save a matlab-compatible .mat file',action='count',default=0)
+
 
 args = parser.parse_args()
 

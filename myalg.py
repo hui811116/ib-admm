@@ -189,7 +189,7 @@ def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	_bk_beta = kwargs['backtracking_beta']
 	_ls_init = kwargs['line_search_init']
 	# learning rate scheduler
-	ls_schedule = [(10000,0.5*_ls_init),(25000,0.25*_ls_init),(50000,0.125*_ls_init)]
+	ls_schedule = ut.getLsSchedule(_ls_init)
 	ls_idx = 0
 	rs = RandomState(MT19937(SeedSequence(kwargs['rand_seed'])))
 	# DEBUG
@@ -294,6 +294,8 @@ def ib_gd(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	# system
 	_bk_beta = kwargs['backtracking_beta']
 	_ls_init = kwargs['line_search_init']
+	ls_schedule = ut.getLsSchedule(_ls_init)
+	ls_idx = 0
 	rs = RandomState(MT19937(SeedSequence(kwargs['rand_seed'])))
 	(nx,ny) = pxy.shape
 	nz = qlevel
@@ -328,6 +330,11 @@ def ib_gd(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	# gradient descent control
 	while (itcnt < max_iter):
 		itcnt+=1
+		if itcnt == ls_schedule[ls_idx][0]:
+			_ls_init = ls_schedule[ls_idx][1]
+			ls_idx += 1
+			if ls_idx == len(ls_schedule):
+				ls_idx -=1 # stay at the end....
 		# compute ib kernel
 		(mean_grad,_) = grad_obj(pzcx,pz,pycz)
 		mean_grad/=beta
@@ -372,7 +379,9 @@ def ib_gd(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 def ib_alm_sec(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	_bk_beta = kwargs['backtracking_beta']
 	#_bk_alpha = kwargs['backtracking_alpha']
+	ls_idx = 0
 	_ls_init = kwargs['line_search_init']
+	ls_schedule = ut.getLsSchedule(_ls_init)
 	(nx,ny) = pxy.shape
 	nz = qlevel
 	px = np.sum(pxy,axis=1)
@@ -472,6 +481,8 @@ def admmib_bayat(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	_parm_c = kwargs['penalty_coeff']
 	_bk_beta = kwargs['backtracking_beta']
 	_ls_init = kwargs['line_search_init']
+	ls_schedule = ut.getLsSchedule(_ls_init)
+	ls_idx = 0
 	rs = RandomState(MT19937(SeedSequence(kwargs['rand_seed'])))
 	
 	(nx,ny) = pxy.shape
@@ -520,8 +531,12 @@ def admmib_bayat(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 		# first attempt, three block method, three penalties
 		# forcing 
 		itcnt += 1
+		if itcnt == ls_schedule[ls_idx][0]:
+			_ls_init = ls_schedule[ls_idx][1]
+			ls_idx += 1
+			if ls_idx == len(ls_schedule):
+				ls_idx -=1 # stay at the end....
 		# the order of step is another thing to tune...
-		
 		# step1: pzcx
 		(mean_grad_pzcx,_) = bayat_pzcx_grad(pzcx,pzcy,pz,_parm_mu_z,_parm_mu_zy)
 		mean_grad_pzcx /= beta
