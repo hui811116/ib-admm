@@ -100,7 +100,7 @@ def ib_orig(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 
 def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	_bk_beta = kwargs['backtracking_beta']
-	ls_schedule = [(10000,0.05),(25000,0.01),(50000,0.005)]
+	ls_schedule = [(10000,0.1),(15000,0.08),(20000,0.05),(25000,0.01)]
 	ls_idx = 0
 	_ls_init = 0.1
 	rs = RandomState(MT19937(SeedSequence(kwargs['rand_seed'])))

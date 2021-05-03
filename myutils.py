@@ -101,4 +101,4 @@ def getFigLabel(**kwargs):
 def getLsSchedule(ls_init):
 	# TODO: design a better learning rate scheduler
 	#       for now, it suffice to compare all methods with this naive implementation.
-	return [(10000,0.5*ls_init),(25000,0.25*ls_init),(50000,0.125*ls_init)]
+	return [(10000,0.5*ls_init),(20000,0.25*ls_init),(35000,0.125*ls_init)]
