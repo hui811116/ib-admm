@@ -108,10 +108,11 @@ for pidx, pen in enumerate(d_penalty_range):
 
 if args.mat:
 	# a file name is specified
-	nametex = 'method,{:},omega,{:},beta,{:.4f}'.format(args.method,args.omega,d_beta)
+	nametex = "{:}_o_{:.2f}_b_{:.4f}".format(args.method,args.omega,d_beta)
+	nametex = nametex.replace('.','f')
 	if args.method == 'dev':
-		filename = 'exp_pen_{:}_o{:.2f}_b{:.4f}.mat'.format(args.method,args.omega,d_beta)
+		filename = 'exp_pen_{:}_o{:.2f}_b{:.4f}'.format(args.method,args.omega,d_beta)
 	else:
-		filename = 'exp_pen_{:}_b{:.4f}.mat'.format(args.method,d_beta)
-	savemat(os.path.join(d_base,filename),{'label':hdr_tex,nametex:pen_rec})
-	print('saving MATLAB .mat file: {:}'.format(args.mat))
+		filename = 'exp_pen_{:}_b{:.4f}'.format(args.method,d_beta)
+	savemat(os.path.join(d_base,filename+'.mat'),{'label':hdr_tex,nametex:pen_rec})
+	print('saving MATLAB .mat file: {:}'.format(os.path.join(d_base,filename+'.mat')))
