@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 import pprint
 import mydata as dt
 import myutils as ut
-import scipy as sp
+from scipy.io import savemat
+
 d_base = os.getcwd()
 
 parser = argparse.ArgumentParser()
@@ -16,9 +17,7 @@ parser.add_argument('-save',help='printing the log and parameters along the exec
 parser.add_argument('-conv',help='Exporting figures for presentation',action='count',default=0)
 parser.add_argument('-mi',help='Plotting the Mutual Information and Information Plane',action='count',default=0)
 parser.add_argument('-omega',help='Display the surface of omega versus penalty of ALM',action='count',default=0)
-parser.add_argument('-mat',help='Save a matlab-compatible .mat file',action='count',default=0)
-
-
+#parser.add_argument('-mat',help='Save a matlab-compatible .mat file',action='count',default=0)
 args = parser.parse_args()
 
 inputdir = os.path.join(d_base,args.filedir)
@@ -55,7 +54,7 @@ def extractData(results):
 			collect_all.append(tmp_row)
 		#print('beta={:6.2f}; convergence rate--{:10.4f}'.format(beta,nvalid/ncnt))
 		#nconv_rate.append([beta,nvalid/ncnt])
-		nconv_rate.append([beta,item_beta['avg_conv']])
+		nconv_rate.append([beta,item_beta['avg_conv'],item_beta['avg_time']])
 	npresult = np.array(collect_all)
 	nconv_res =  np.array(nconv_rate)
 	return (npresult, nconv_res)
@@ -132,6 +131,15 @@ def convResult(filedir):
 	results = readout['data']
 	res_hdr = ['IXZ','IYZ','niter','valid']
 	(npresult,nconv_res) = extractData(results)
+	# FIXME: auto saving a .mat file for further processing
+	#pathlist = os.path.split(filedir)
+	#print('DEBUG(convResult),sizeof concate data:')
+	#matdict_npres = {'label':'beta,'+','.join(res_hdr),pathlist[-1]+'_np':npresult}
+	#matdict_conv  = {'label':'beta,avg_prob,avg_time',pathlist[-1]+'_pt':nconv_res}
+	#savemat
+	#savemat(os.path.join(filedir,pathlist[-1]+'_np.mat'),matdict_npres)
+	#savemat(os.path.join(filedir,pathlist[-1]+'_pt.mat'),matdict_conv)
+	saveMat(filedir,(npresult,nconv_res))
 	method = readout['method']
 	penalty = readout['penalty']
 	out_dict = {'beta':nconv_res[:,0],'percent':nconv_res,'method':method,'penalty':penalty}
@@ -143,6 +151,17 @@ def convResult(filedir):
 		sys.exit("fatal error, the method does not belong to penalty methods")
 	return out_dict
 
+def saveMat(filedir,extracted):
+	res_hdr = ['IXZ','IYZ','niter','valid']
+	(npresult,nconv_res) = extracted
+	pathlist = os.path.split(filedir)
+	matdict_npres = {'label':'beta,'+','.join(res_hdr),pathlist[-1]+'_np':npresult}
+	matdict_conv  = {'label':'beta,avg_prob,avg_time',pathlist[-1]+'_pt':nconv_res}
+	#savemat
+	savemat(os.path.join(filedir,pathlist[-1]+'_np.mat'),matdict_npres)
+	savemat(os.path.join(filedir,pathlist[-1]+'_pt.mat'),matdict_conv)
+	print('Saving .mat MATLAB file to:{}\n'.format(filedir))
+	return
 ##
 def readResult(filedir=".",savedir=".",collect=False):
 	readout = readFolder(filedir)
@@ -153,6 +172,8 @@ def readResult(filedir=".",savedir=".",collect=False):
 	res_hdr = ['IXZ','IYZ','niter','valid']
 	
 	(npresult,nconv_res) = extractData(results)
+	# save a MATLAB .mat file for further processing
+	saveMat(filedir,(npresult,nconv_res))
 	fig_label = ut.getFigLabel(**readout)
 	# plotting (scatter)
 	# 1. IB curve: I(Y;Z) versus I(X;Z)
@@ -356,20 +377,30 @@ elif args.omega:
 		fullname = os.path.join(inputdir,files)
 		if os.path.isdir(fullname):
 			oneresult = convResult(fullname)
-			# dict_keys(['beta', 'percent', 'method', 'penalty', 'omega'])
 			all_result.append([oneresult['penalty'],np.array(oneresult['percent'])])
 	all_result.sort(key=lambda x:x[0])
-	#print(all_result[0:10])
-	#sys.exit()
 	beta_range = np.array(oneresult['beta'])
 	penalty_range =[]
 	for item in all_result:
 		penalty_range.append(item[0])
 	penalty_range = np.array(penalty_range)
+	cputime_conv = np.zeros((len(beta_range),len(penalty_range)))
 	prob_conv = np.zeros((len(beta_range),len(penalty_range)))
 	for bi in range(len(beta_range)):
 		for pi in range(len(penalty_range)):
 			prob_conv[bi,pi] = all_result[pi][1][bi,1]
+			cputime_conv[bi,pi] = all_result[pi][1][bi,2] # FIXME: easier but confusing
+	# write the avg_prob and avg_time to .mat format
+	#print('DEBUG(omega), attempting to store files to:{}'.format(inputdir)) # this is correct
+	pathlist = os.path.split(inputdir)
+	bdict = {'label':'beta,axis_0',pathlist[-1]+'_beta':beta_range}
+	pdict = {'label':'penalty,axis_1',pathlist[-1]+'_penalty':penalty_range}
+	datadict = {'label':'(convprob,cputime),beta,penalty',pathlist[-1]+'_ct':
+					np.concatenate((prob_conv[np.newaxis,...],cputime_conv[np.newaxis,...]),axis=0)}
+	savemat(os.path.join(inputdir,pathlist[-1]+'_beta.mat'),bdict)
+	savemat(os.path.join(inputdir,pathlist[-1]+'_penalty.mat'),pdict)
+	savemat(os.path.join(inputdir,pathlist[-1]+'_omega.mat'),datadict)
+	print('saving MATLAB .mat to {}'.format(inputdir))
 	fig = plt.figure()
 	ax = plt.axes(projection='3d')
 	s_x=[]
