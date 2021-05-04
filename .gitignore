@@ -135,3 +135,7 @@ dmypy.json
 
 # Experiment directory
 exp*/
+
+# MAC
+.DS_Store/*
+.DS_Store
