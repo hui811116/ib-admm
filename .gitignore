@@ -139,3 +139,6 @@ exp*/
 # MAC
 .DS_Store/*
 .DS_Store
+
+# MATLAB mat for plotting
+*.mat

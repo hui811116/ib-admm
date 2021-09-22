@@ -35,6 +35,7 @@ parser.add_argument('-sscale',type=float,help='Step size line search scaling',de
 parser.add_argument('-seed',type=int,help='Random seed for reproduction',default=None)
 parser.add_argument('-maxiter',type=int,help='The maximum number of iteration per run',default=50000)
 parser.add_argument('-mat',help="Save the results to MATLAB .mat file as specified",action='count',default=0)
+parser.add_argument('-patch',type=int,help="Name the file with a patch number",default=None)
 
 parser.add_argument("-v",'--verbose',help='printing the log and parameters along the execution',action='count',default=0)
 
@@ -108,10 +109,14 @@ for pidx, pen in enumerate(d_penalty_range):
 
 if args.mat:
 	# a file name is specified
-	nametex = 'method,{:},omega,{:},beta,{:.4f}'.format(args.method,args.omega,d_beta)
+	nametex = '{:}_o_{:.2f}_b_{:.4f}'.format(args.method,args.omega,d_beta)
+	nametex = nametex.replace('.','f')
 	if args.method == 'dev':
-		filename = 'exp_pen_{:}_o{:.2f}_b{:.4f}.mat'.format(args.method,args.omega,d_beta)
+		filename = 'exp_pen_{:}_o{:.2f}_b{:.4f}'.format(args.method,args.omega,d_beta)
 	else:
-		filename = 'exp_pen_{:}_b{:.4f}.mat'.format(args.method,d_beta)
+		filename = 'exp_pen_{:}_b{:.4f}'.format(args.method,d_beta)
+	if args.patch:
+		filename = filename + '_patch_{:}'.format(int(args.patch))
+	filename = filename + '.mat'
 	savemat(os.path.join(d_base,filename),{'label':hdr_tex,nametex:pen_rec})
-	print('saving MATLAB .mat file: {:}'.format(args.mat))
+	print('saving MATLAB .mat file: {:}'.format(os.path.join(d_base,filename)))

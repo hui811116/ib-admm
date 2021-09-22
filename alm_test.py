@@ -140,6 +140,8 @@ def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	rec_hz_zcx = np.zeros(max_iter,)
 	rec_hz     = np.zeros(max_iter,)
 
+	rec_pz_grad_norm= np.zeros(max_iter,)
+
 	itcnt = 0
 	# gradient descent control
 	# defined in global variables
@@ -204,7 +206,8 @@ def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 		if arm_ss_pz == 0:
 			arm_ss_pz = ss_pz
 		new_pz   = pz   - arm_ss_pz * mean_grad_pz
-		
+		# DEBUG
+		rec_pz_grad_norm[itcnt-1] = np.linalg.norm(arm_ss_pz*mean_grad_pz,2)
 		## End Developing section
 		# for fair comparison, use total variation distance as termination criterion
 		pen_z = new_pz - np.sum(new_pzcx*px[None,:],axis=1)
@@ -240,6 +243,7 @@ def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 			'pzcy_min':rec_pzcy_min[:itcnt],
 			'hz_zcx':rec_hz_zcx[:itcnt],
 			'hz':rec_hz[:itcnt],
+			'pz_grad_norm':rec_pz_grad_norm[:itcnt],
 			'end_penalty':pen_check}
 
 # ------------------------------------------------------------------------------------------------------
@@ -329,6 +333,10 @@ if args.method == "dev":
 	ax2.set_xlabel("Iteration",fontsize=14)
 
 	plt.tight_layout()
+	plt.show()
+
+	plt.plot(xx,ib_res['pz_grad_norm'])
+	plt.yscale('log')
 	plt.show()
 
 else:

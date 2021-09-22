@@ -172,11 +172,11 @@ def getBayatGradObjPz(beta,px,py,pxcy,pycx,pen_c):
 
 def getBayatFuncObjPz(beta,px,py,pxcy,pycx,pen_c):
 	def val_obj(pz,pzcx,mu_z):
-		return (beta-1)*(np.sum(pz*np.log(pz)))+pen_c/2*np.sum((pz-np.sum(pzcx*px[None,:],axis=0)+mu_z/pen_c)**2)
+		return (beta-1)*(np.sum(pz*np.log(pz)))+pen_c/2*np.sum((pz-np.sum(pzcx*px[None,:],axis=1)+mu_z/pen_c)**2)
 	return val_obj
 def getBayatFuncObjPzcx(beta,px,py,pxcy,pycx,pen_c):
 	def val_obj(pzcx,pz,pzcy,mu_z,mu_zy):
-		return np.sum(pzcx*px[None,:]*np.log(pzcx))+pen_c/2*np.sum((pz-np.sum(pzcx*px[None,:],axis=0)+mu_z/pen_c)**2)\
+		return np.sum(pzcx*px[None,:]*np.log(pzcx))+pen_c/2*np.sum((pz-np.sum(pzcx*px[None,:],axis=1)+mu_z/pen_c)**2)\
 				+pen_c/2*np.sum( (pzcy-pzcx@pxcy/np.sum(pzcx@pxcy,axis=0)[None,:]+mu_zy/pen_c)**2)
 	return val_obj
 

@@ -155,8 +155,8 @@ def saveMat(filedir,extracted):
 	res_hdr = ['IXZ','IYZ','niter','valid']
 	(npresult,nconv_res) = extracted
 	pathlist = os.path.split(filedir)
-	matdict_npres = {'label':'beta,'+','.join(res_hdr),pathlist[-1]+'_np':npresult}
-	matdict_conv  = {'label':'beta,avg_prob,avg_time',pathlist[-1]+'_pt':nconv_res}
+	matdict_npres = {'label':'beta,'+','.join(res_hdr),pathlist[-1].replace('.','f')+'_np':npresult}
+	matdict_conv  = {'label':'beta,avg_prob,avg_time',pathlist[-1].replace('.','f')+'_pt':nconv_res}
 	#savemat
 	savemat(os.path.join(filedir,pathlist[-1]+'_np.mat'),matdict_npres)
 	savemat(os.path.join(filedir,pathlist[-1]+'_pt.mat'),matdict_conv)
