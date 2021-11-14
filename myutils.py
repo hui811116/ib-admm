@@ -4,9 +4,9 @@ import sys
 
 def getAlgList(mode='all'):
 	if mode == 'all':
-		return ['orig','gd','sec','dev','bayat']
+		return ['orig','gd','sec','dev','bayat','mv']
 	elif mode == 'penalty':
-		return ['dev','bayat']
+		return ['dev','bayat','mv']
 	elif mode == 'trans':
 		return ['orig','dev']
 	else:
@@ -101,4 +101,4 @@ def getFigLabel(**kwargs):
 def getLsSchedule(ls_init):
 	# TODO: design a better learning rate scheduler
 	#       for now, it suffice to compare all methods with this naive implementation.
-	return [(10000,0.5*ls_init),(20000,0.25*ls_init),(35000,0.125*ls_init)]
+	return [(100,0.5*ls_init),(1000,0.1*ls_init),(10000,0.05*ls_init)]

@@ -185,3 +185,50 @@ def getBayatFuncObjPzcy(beta,px,py,pxcy,pycx,pen_c):
 		return -beta*np.sum(pzcy*py[None,:]*np.log(pzcy))\
 				+pen_c/2*np.sum((pzcy-pzcx@pxcy/np.sum(pzcx@pxcy,axis=0)[None,:]+mu_zy/pen_c)**2)
 	return val_obj
+
+
+# basic multiview formulation
+def getMvFuncObjPz(beta,px,pen_c):
+	def val_obj(pz,pzcx,mu_z):
+		gamma = 1/beta
+		errz = np.sum(pzcx*px[None,:],axis=1)-pz
+		return (1-gamma)*(np.sum(pz*np.log(pz)))+np.sum(mu_z*errz)+pen_c/2*(np.linalg.norm(errz)**2)
+	return val_obj
+def getMvFuncObjPzcy(py,pxcy,pen_c):
+	def val_obj(pzcy,pzcx,mu_zy):
+		errzy = pzcx@pxcy - pzcy
+		return -np.sum(pzcy*py[None,:]*np.log(pzcy))+np.sum(mu_zy*errzy)+pen_c/2*(np.linalg.norm(errzy)**2)
+	return val_obj
+def getMvFuncObjPzcx(beta,px,pxcy,pen_c):
+	def val_obj(pzcx,pz,pzcy,mu_z,mu_zy):
+		gamma = 1/beta
+		errz = np.sum(pzcx*px[None,:],axis=1)-pz
+		errzy = pzcx@pxcy-pzcy
+		return gamma*np.sum(pzcx*px[None,:]*np.log(pzcx))+np.sum(mu_z*errz)+pen_c/2*(np.linalg.norm(errz)**2)\
+														+np.sum(mu_zy*errzy)+pen_c/2*(np.linalg.norm(errzy)**2)
+	return val_obj
+
+def getMvGradObjPz(beta,px,pen_c):
+	def grad_obj(pz,pzcx,mu_z):
+		gamma = 1/beta
+		errz = np.sum(pzcx*px[None,:],axis=1)-pz
+		grad= (1-gamma)*(np.log(pz)+1)-mu_z-pen_c*errz
+		mean_grad= np.mean(grad)
+		return (grad-mean_grad,mean_grad)
+	return grad_obj
+def getMvGradObjPzcy(py,pxcy,pen_c):
+	def grad_obj(pzcy,pzcx,mu_zy):
+		errzy = pzcx@pxcy - pzcy
+		grad= -(np.log(pzcy)+1)*py[None,:]-mu_zy-pen_c*errzy
+		mean_grad = np.mean(grad,axis=0)
+		return (grad-mean_grad,mean_grad)
+	return grad_obj
+def getMvGradObjPzcx(beta,px,pxcy,pen_c):
+	def grad_obj(pzcx,pz,pzcy,mu_z,mu_zy):
+		gamma = 1/beta
+		errz = np.sum(pzcx*px[None,:],axis=1) - pz
+		errzy= pzcx@pxcy - pzcy
+		grad= gamma*px[None,:]*(np.log(pzcx)+1)+(mu_z+pen_c*errz)[:,None]*px[None,:]+(mu_zy+pen_c*errzy)@pxcy.T
+		mean_grad = np.mean(grad,axis=0)
+		return (grad-mean_grad,mean_grad)
+	return grad_obj

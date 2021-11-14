@@ -26,6 +26,8 @@ def selectAlg(method,**kwargs):
 		return ib_alm_dev
 	elif method == 'bayat':
 		return admmib_bayat
+	elif method == 'mv':
+		return ib_mv
 	return None
 
 def ib_orig(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
@@ -603,4 +605,104 @@ def admmib_bayat(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 
 	return {'prob_zcx':pzcx,'prob_z':pz,'prob_zcy':pzcy,
 			'niter':itcnt,'IXZ':mixz,'IYZ':miyz,'valid':isvalid}
+
+def ib_mv(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
+	_bk_beta = kwargs['backtracking_beta']
+	_ls_init = kwargs['line_search_init']
+	# learning rate scheduler
+	ls_schedule = ut.getLsSchedule(_ls_init)
+	ls_idx = 0
+	rs = RandomState(MT19937(SeedSequence(kwargs['rand_seed'])))
+	
+	(nx,ny) = pxy.shape
+	nz = qlevel
+	px = np.sum(pxy,axis=1)
+	py = np.sum(pxy,axis=0)
+	py = py/np.sum(py)
+	pycx = np.transpose((1./px)[:,None]*pxy)
+	pxcy = pxy*(1./py)[None,:]
+	# on IB, the initialization matters
+	# use random start
+	sel_idx = rs.permutation(nx)
+	pz = px[sel_idx[:nz]]
+	pz /= np.sum(pz)
+	pz_delay = copy.copy(pz)
+	pzcx = rs.rand(nz,nx)
+	pzcx = pzcx * (1./np.sum(pzcx,axis=0))[None,:]
+	pzcx[:nz,:] = pycx[:,sel_idx[:nz]]
+	pzcy = pzcx@pxcy
+	pzcy = pzcy * (1./np.sum(pzcx,axis=0))[None,:]
+	# defined in global variables
+	pen_c = kwargs['penalty_coeff']
+	# dual variables
+	dual_z = np.zeros((nz,))
+	dual_zy = np.zeros((nz,ny))
+	# using the objects
+	grad_pz_obj = ent.getMvGradObjPz(beta,px,pen_c)
+	grad_pzcy_obj = ent.getMvGradObjPzcy(py,pxcy,pen_c)
+	grad_pzcx_obj = ent.getMvGradObjPzcx(beta,px,pxcy,pen_c)
+	func_pz_obj = ent.getMvFuncObjPz(beta,px,pen_c)
+	func_pzcy_obj = ent.getMvFuncObjPzcy(py,pxcy,pen_c)
+	func_pzcx_obj = ent.getMvFuncObjPzcx(beta,px,pxcy,pen_c)
+	# ready to start
+	flag_valid = False
+	itcnt = 0
+	while itcnt< max_iter:
+		itcnt+=1
+		if itcnt == ls_schedule[ls_idx][0]:
+			_ls_init = ls_schedule[ls_idx][1]
+			ls_idx += 1
+			if ls_idx == len(ls_schedule):
+				ls_idx -=1 # stay at the end....
+
+		# update the str cvx part first
+		(grad_x,_) = grad_pzcx_obj(pzcx,pz,pzcy,dual_z,dual_zy)
+		ss_x= gd.validStepSize(pzcx,-grad_x,_ls_init,_bk_beta)
+		# FIXME: pick the one with better rate of convergence (empirical)
+		#ss_x = gd.armijoStepSize(pzcx,-grad_x,_ls_init,_bk_beta,1e-4,func_pzcx_obj,grad_pzcx_obj,**{'pz':pz,'pzcy':pzcy,'mu_z':dual_z,'mu_zy':dual_zy})
+		if ss_x == 0:
+			break
+		new_pzcx = pzcx - grad_x*ss_x
+		# update pz and pzcy together, with min stepsize
+		(grad_z,_) = grad_pz_obj(pz,new_pzcx,dual_z)
+		ss_z = gd.validStepSize(pz,-grad_z,_ls_init,_bk_beta)
+		# FIXME: pick the one with better rate of convergence (empirical)
+		#ss_z = gd.armijoStepSize(pz,-grad_z,_ls_init,_bk_beta,1e-4,func_pz_obj,grad_pz_obj,**{'pzcx':new_pzcx,'mu_z':dual_z})
+		if ss_z ==0:
+			break
+		# start with this valid stepsize to save time
+		(grad_y,_) = grad_pzcy_obj(pzcy,new_pzcx,dual_zy)
+		#ss_zy = gd.armijoStepSize(pzcy,-grad_y,ss_z,_bk_beta,1e-4,func_pzcy_obj,grad_pzcy_obj,**{'pzcx':new_pzcx,'mu_zy':dual_zy})
+		# FIXME: pick the one with better rate of convergence (empirical)
+		ss_zy = gd.validStepSize(pzcy,-grad_y,ss_z,_bk_beta)
+		if ss_zy == 0:
+			break
+		# update augmented vars
+		new_pz = pz - grad_z * ss_zy
+		new_pzcy = pzcy - grad_y * ss_zy
+		# update dual var
+		errz = np.sum(new_pzcx*px[None,:],axis=1) - new_pz
+		errzy= new_pzcx @ pxcy - new_pzcy
+		dual_z += pen_c*errz
+		dual_zy+= pen_c*errzy
+		# convergence check
+		dtv_z = 0.5* np.sum(np.fabs(errz)) < conv_thres
+		dtv_zy=0.5 * np.sum(np.fabs(errzy),axis=0) < conv_thres
+		flag_valid = np.all(np.array(dtv_z)) and np.all(np.array(dtv_zy))
+		if flag_valid:
+			break
+		else:
+			pzcx = new_pzcx
+			pz = new_pz
+			pzcy = new_pzcy
+	'''
+	debug_errz = np.sum(new_pzcx*px[None,:],axis=1)-pz
+	debug_errzy= new_pzcx@pxcy - pzcy
+	print(debug_errz)
+	print(debug_errzy)
+	'''
+	mixz = ut.calc_mi(pzcx,px)
+	miyz = ut.calc_mi(pzcy,py)
+	return {'prob_zcx':pzcx,'prob_z':pz,'prob_zcy':pzcy,
+			'niter':itcnt,'IXZ':mixz,'IYZ':miyz,'valid':flag_valid}
 
