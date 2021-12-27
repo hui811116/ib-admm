@@ -4,14 +4,26 @@ import copy
 def validStepSize(prob,update,init_stepsize,bk_beta):
 	step_size = init_stepsize
 	test = prob+init_stepsize * update
-	it_cnt = 0
+	#it_cnt = 0 # for debugging purpose only
 	while np.any(test>1.0) or np.any(test<0.0):
 		if step_size <= 1e-9:
 			return 0
 		step_size = step_size*bk_beta
 		test = prob + step_size * update
-		it_cnt += 1
+		#it_cnt += 1
 	return step_size
+
+def heavyBallStepSize(prob,delay_prob,update,init_stepsize,bk_beta,hv_damp,**kwargs):
+	step_size = init_stepsize
+	diff = prob-delay_prob
+	test = prob+step_size*update+hv_damp*diff
+	while np.any(test>=1.0) or np.any(test<=0.0):
+		if step_size<= 1e-9:
+			return 0
+		step_size *= bk_beta
+		test = prob+step_size*update+hv_damp*diff
+	return step_size
+
 
 def armijoStepSize(prob,update,alpha,ss_beta,c1,obj_func,obj_grad,**kwargs):
 	ss = alpha
@@ -20,8 +32,7 @@ def armijoStepSize(prob,update,alpha,ss_beta,c1,obj_func,obj_grad,**kwargs):
 	(now_grad,_) = obj_grad(prob,**kwargs)
 	while f_next > f_now + c1*ss*np.sum(update*now_grad):
 		if ss <= 1e-9:
-			ss=0
-			break
+			return 0
 		ss *= ss_beta
 		f_next = obj_func(prob+ss*update,**kwargs)
 	return ss
@@ -64,8 +75,9 @@ def wolfeStepSize(prob,update,init_ss,ss_beta,ss_c1,obj_func,obj_grad,lambda_reg
 		now_grad = raw_grad - lambda_reg
 	while f_next + f_now + ss_c1*ss*np.sum(update*now_grad):
 		if ss <= 1e-12:
-			ss = 0
-			break
+			return 0
 		ss *= ss_beta
 		f_next = obj_func(prob+ss*update,**kwargs)
 	return 0
+
+

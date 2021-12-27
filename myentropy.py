@@ -232,3 +232,40 @@ def getMvGradObjPzcx(beta,px,pxcy,pen_c):
 		mean_grad = np.mean(grad,axis=0)
 		return (grad-mean_grad,mean_grad)
 	return grad_obj
+
+
+## DRS-IB TYPE I
+def getDrsmarkFuncObjPz(beta,px,pen_c):
+	def val_obj(pz,pzcx,mu_z):
+		gamma = 1/beta
+		errz = pz - np.sum(pzcx * px[None,:],axis=1)
+		# (gamma-1)H(Z) + <mu_z,>
+		return (1-gamma)*np.sum(pz * np.log(pz)) + np.sum(mu_z * errz) + 0.5*pen_c*(np.linalg.norm(errz)**2)
+	return val_obj
+def getDrsmarkFuncObjPzcx(beta,px,py,pxcy,pen_c):
+	def val_obj(pzcx,pz,mu_z):
+		gamma = 1/beta
+		errz = pz - np.sum(pzcx * px[None,:],axis=1)
+		pzcy = pzcx @ pxcy
+		# -gamma H(Z|X) + H(Z|Y)
+		return gamma * (np.sum(pzcx*px[None,:]*np.log(pzcx))) - (np.sum(pzcy*py[None,:]*np.log(pzcy))) \
+				+np.sum(mu_z*errz)+ 0.5*pen_c*(np.linalg.norm(errz)**2)
+	return val_obj
+
+def getDrsmarkGradObjPz(beta,px,pen_c):
+	def grad_obj(pz,pzcx,mu_z):
+		gamma = 1/ beta
+		errz = pz - np.sum(pzcx*px[None,:],axis=1)
+		grad = (1-gamma) * (np.log(pz)+1)+ mu_z + pen_c*errz
+		mean_grad = grad - np.mean(grad)
+		return (grad-mean_grad,mean_grad)
+	return grad_obj
+def getDrsamrkGradObjPzcx(beta,px,py,pxcy,pen_c):
+	def grad_obj(pzcx,pz,mu_z):
+		gamma = 1/beta
+		errz = pz - np.sum(pzcx*px[None,:],axis=1)
+		pzcy = pzcx @ pxcy
+		grad = gamma * (np.log(pzcx)+1)*px[None,:]-(np.log(pzcy)+1)*pxcy.T-(mu_z+pen_c*errz)*px[None,:]
+		mean_grad = grad - np.mean(grad,axis=0)
+		return (grad-mean_grad,mean_grad)
+	return grad_obj

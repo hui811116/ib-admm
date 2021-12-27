@@ -27,7 +27,7 @@ parser.add_argument('-ntime',type=int,help='run how many times per beta',default
 parser.add_argument('-minpenalty',type=float,help='min penalty coefficient',default=4.0)
 parser.add_argument('-maxpenalty',type=float,help='max penalty coefficient',default=128.0)
 parser.add_argument('-steppenalty',type=float,help="the penalty range between penalty_min and penalty_max",default=4.0)
-
+parser.add_argument('-relax',type=float,help='Relaxation parameter for DRS',default=1.0)
 parser.add_argument('-omega',type=float,help='Bregman Regularization coefficient',default=2.0)
 parser.add_argument('-thres',type=float,help='convergence threshold',default=1e-6)
 parser.add_argument('-sinit',type=float,help='Initial step size for line search',default=0.5)
@@ -51,6 +51,7 @@ _sys_parms = {
 	'conv_thres'        : args.thres,
 	'breg_omega'        : args.omega,
 	'rand_seed'         : args.seed,
+	'relax_coeff'       : args.relax,
 }
 
 if args.verbose:

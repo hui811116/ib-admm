@@ -4,9 +4,9 @@ import sys
 
 def getAlgList(mode='all'):
 	if mode == 'all':
-		return ['orig','gd','sec','dev','bayat','mv']
+		return ['orig','gd','sec','dev','bayat','mv','drs','acc_drs','drs_mark']
 	elif mode == 'penalty':
-		return ['dev','bayat','mv']
+		return ['dev','bayat','mv','drs','acc_drs','drs_mark']
 	elif mode == 'trans':
 		return ['orig','dev']
 	else:
@@ -41,21 +41,7 @@ def pxy2allprob(pxy):
 	return {'px':px,'py':py,'pxcy':pxcy,'pycx':pycx}
 
 def genOutName(**kwargs):
-	method = kwargs['method']
-	if method == 'orig':
-		return 'orig_{}_result'.format(kwargs['dataset'])
-	elif method == 'gd':
-		return 'gd_{}_result'.format(kwargs['dataset'])
-	elif method == 'alm':
-		return 'alm_{}_result'.format(kwargs['dataset'])
-	elif method == 'sec':
-		return 'sec_{}_result'.format(kwargs['dataset'])
-	elif method == 'dev':
-		return 'dev_{}_result'.format(kwargs['dataset'])
-	elif method == 'bayat':
-		return 'bayat_{}_result'.format(kwargs['dataset'])
-	else:
-		sys.exit('undefined method {}'.format(method))
+	return '{}_{}_result'.format(kwargs['method'],kwargs['dataset'])
 
 def genExpName(**kwargs):
 	method = kwargs['method']
@@ -64,9 +50,12 @@ def genExpName(**kwargs):
 		penalty = '{:.2f}'.format(kwargs['penalty'])
 		omega = '{:.2f}'.format(kwargs['omega'])
 		return '{}_{}_o{}_c{}'.format(method,dataset,str(omega),str(penalty))
-	elif method == 'bayat':
+	elif method in ['bayat','mv']:
 		penalty = '{:.2f}'.format(kwargs['penalty'])
 		return '{}_{}_c{}'.format(method,dataset,str(penalty))
+	elif method in ['drs','drs_acc','drs_mark']:
+		penalty = '{:.2f}'.format(kwargs['penalty'])
+		relax   = '{:.2f}'.format(kwargs['relax'])
 	elif method in ['gd','orig']:
 		return '{}_{}_exp'.format(method,dataset)
 	else:
@@ -79,9 +68,13 @@ def genStatus(**kwargs):
 		penalty = '{:.2f}'.format(kwargs['penalty'])
 		omega = '{:.2f}'.format(kwargs['omega'])
 		return 'method:'+method+'---'+'beta,{beta:>6.3f}, penalty, {penalty_coeff:>6.2f}, omega, {breg_omega:>6.2f}, Progress:'
-	elif method == 'bayat':
+	elif method in ['bayat','mv','drs','drs_acc']:
 		penalty = '{:.2f}'.format(kwargs['penalty'])
 		return 'method:'+method+'---'+'beta,{beta:>6.3f}, penalty, {penalty_coeff:>6.2f}, Progress:'
+	elif method in ['drs','drs_mark','drs_acc']:
+		penalty = '{:.2f}'.format(kwargs['penalty'])
+		relax   = '{:.2f}'.format(kwargs['relax'])
+		return 'method:'+method+'---'+'beta,{beta:>6.3f}, penalty {penalty_coeff:>6.2f}, relax, {relax_coeffi:>6.2f}, Progress:'
 	elif method in ['gd','orig']:
 		return 'method:'+method+'---'+'beta,{beta:>6.3f}, Progress:'
 	else:
@@ -93,12 +86,14 @@ def getFigLabel(**kwargs):
 		return 'IB-orig'
 	elif method == 'gd':
 		return 'IB-gd'
-	elif method == 'bayat':
-		return r"bayat, $c={:}$".format(kwargs['penalty'])
+	elif method in ['bayat','mv']:
+		return r"{}, $c={:}$".format(method,kwargs['penalty'])
+	elif method in ['drs','drs_acc','drs_mark']
+		return r"{}, $c={:}, \alpha={:}$".format(kwargs['penalty'],kwargs['relax'])
 	elif method == 'dev':
 		return r"ours, $c={:}, \omega={:}$".format(kwargs['penalty'],kwargs['omega'])
 
 def getLsSchedule(ls_init):
 	# TODO: design a better learning rate scheduler
 	#       for now, it suffice to compare all methods with this naive implementation.
-	return [(100,0.5*ls_init),(1000,0.1*ls_init),(10000,0.05*ls_init)]
+	return [(500,0.5*ls_init),(1000,0.1*ls_init),(5000,0.05*ls_init)]

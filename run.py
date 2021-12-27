@@ -30,6 +30,7 @@ parser.add_argument('-numbeta',type=int,help='the geometric spacing between beta
 parser.add_argument('-ntime',type=int,help='run how many times per beta',default=100)
 parser.add_argument('-penalty',type=float,help='penalty coefficient',default=4.0)
 parser.add_argument('-omega',type=float,help='Bregman Regularization coefficient',default=2.0)
+parser.add_argument('-relax',type=float,help='Relaxation parameter for DRS',default=1.0)
 parser.add_argument('-thres',type=float,help='convergence threshold',default=1e-6)
 parser.add_argument('-sinit',type=float,help='Initial step size for line search',default=0.5)
 parser.add_argument('-sscale',type=float,help='Step size line search scaling',default=0.25)
@@ -51,6 +52,7 @@ _sys_parms = {
 	'penalty_coeff'     : args.penalty,
 	'breg_omega'        : args.omega,
 	'rand_seed'         : args.seed,
+	'relax_coeff'       : args.relax,
 }
 
 if args.verbose:
