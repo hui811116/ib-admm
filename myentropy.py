@@ -242,7 +242,7 @@ def getDrsmarkFuncObjPz(beta,px,pen_c):
 		# (gamma-1)H(Z) + <mu_z,>
 		return (1-gamma)*np.sum(pz * np.log(pz)) + np.sum(mu_z * errz) + 0.5*pen_c*(np.linalg.norm(errz)**2)
 	return val_obj
-def getDrsmarkFuncObjPzcx(beta,px,py,pxcy,pen_c):
+def getDrsmarkFuncObjPzcx(beta,px,py,pxcy,pycx,pen_c):
 	def val_obj(pzcx,pz,mu_z):
 		gamma = 1/beta
 		errz = pz - np.sum(pzcx * px[None,:],axis=1)
@@ -257,15 +257,16 @@ def getDrsmarkGradObjPz(beta,px,pen_c):
 		gamma = 1/ beta
 		errz = pz - np.sum(pzcx*px[None,:],axis=1)
 		grad = (1-gamma) * (np.log(pz)+1)+ mu_z + pen_c*errz
-		mean_grad = grad - np.mean(grad)
+		mean_grad = np.mean(grad)
 		return (grad-mean_grad,mean_grad)
 	return grad_obj
-def getDrsamrkGradObjPzcx(beta,px,py,pxcy,pen_c):
+def getDrsmarkGradObjPzcx(beta,px,py,pxcy,pycx,pen_c):
 	def grad_obj(pzcx,pz,mu_z):
 		gamma = 1/beta
 		errz = pz - np.sum(pzcx*px[None,:],axis=1)
 		pzcy = pzcx @ pxcy
-		grad = gamma * (np.log(pzcx)+1)*px[None,:]-(np.log(pzcy)+1)*pxcy.T-(mu_z+pen_c*errz)*px[None,:]
-		mean_grad = grad - np.mean(grad,axis=0)
-		return (grad-mean_grad,mean_grad)
+		grad = (gamma * (np.log(pzcx)+1) -(np.log(pzcy)+1)@pycx-(mu_z+pen_c*errz)[:,None])*px[None,:]
+		mean_grad = np.mean(grad,axis=0)
+		return (grad-mean_grad[None,:],mean_grad)
 	return grad_obj
+

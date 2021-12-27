@@ -46,10 +46,11 @@ def ib_orig(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	pxcy = pxy@np.diag(1./py)
 	# on IB, the initialization matters
 	# use random start (*This is the one used for v2)
-	#sel_idx = rs.permutation(nx)
-	#pzcx[:nz,:] = pycx[:,sel_idx[:nz]]
+	sel_idx = rs.permutation(nx)
 	pzcx = rs.rand(nz,nx)
-	pzcx = pzcx * (1./np.sum(pzcx,axis=0))[None,:]
+	pzcx[:nz,:] = pycx[:,sel_idx[:nz]]
+	
+	pzcx /= np.sum(pzcx,axis=0)[None,:]
 	pz = np.sum(pzcx *px[None,:],axis=1)
 	pycz = pycx@ np.transpose(1/pz[:,None]*pzcx*px[None,:])
 	
@@ -103,10 +104,11 @@ def ib_alm_dev(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	pxcy = pxy*(1./py)[None,:]
 	# on IB, the initialization matters
 	# use random start
-	#sel_idx = rs.permutation(nx)
-	#pzcx[:nz,:] = pycx[:,sel_idx[:nz]]
+	sel_idx = rs.permutation(nx)
 	pzcx = rs.rand(nz,nx)
-	pzcx = pzcx * (1./np.sum(pzcx,axis=0))[None,:]
+	pzcx[:nz,:] = pycx[:,sel_idx[:nz]]
+	
+	pzcx /= np.sum(pzcx,axis=0)[None,:]
 	pz = np.sum(pzcx*px[None,:],axis=1)
 	pz_delay = copy.copy(pz)
 	pzcy = pzcx@pxcy
@@ -199,10 +201,11 @@ def ib_gd(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	pxcy = pxy*(1./py)[None,:]
 	# on IB, the initialization matters
 	# use random start
-	#sel_idx = rs.permutation(nx)
-	#pzcx[:nz,:] = pycx[:,sel_idx[:nz]]
+	sel_idx = rs.permutation(nx)
 	pzcx = rs.rand(nz,nx)
-	pzcx = pzcx * (1./np.sum(pzcx,axis=0))[None,:]
+	pzcx[:nz,:] = pycx[:,sel_idx[:nz]]
+	
+	pzcx /=np.sum(pzcx,axis=0)[None,:]
 	pz = np.sum(pzcx * px[None,:],axis=1)
 	pzcy = pzcx@pxcy
 
@@ -278,11 +281,11 @@ def ib_alm_sec(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	pxcy = pxy*(1./py)[None,:]
 	# on IB, the initialization matters
 	# use random start
-	#sel_idx = np.random.permutation(nx)
-	#pzcx[:nz,:] = pycx[:,sel_idx[:nz]]
-
+	sel_idx = np.random.permutation(nx)
 	pzcx = np.random.rand(nz,nx)
-	pzcx = pzcx * (1./np.sum(pzcx,axis=0))[None,:]
+	pzcx[:nz,:] = pycx[:,sel_idx[:nz]]
+	
+	pzcx /= np.sum(pzcx,axis=0)[None,:]
 	pz = np.sum(pzcx*px[None,:],axis=1)
 	pz_delay = copy.copy(pz)
 	pzcy = pzcx@pxcy
@@ -381,11 +384,11 @@ def admmib_bayat(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	pxcy = pxy*(1./py)[None,:]
 	# on IB, the initialization matters
 	# use random start
-	#sel_idx = rs.permutation(nx)
-	#pzcx[:nz,:] = pycx[:,sel_idx[:nz]]
+	sel_idx = rs.permutation(nx)
 	pzcx = rs.rand(nz,nx)
+	pzcx[:nz,:] = pycx[:,sel_idx[:nz]]
 	
-	pzcx = pzcx * (1./np.sum(pzcx,axis=0))[None,:]
+	pzcx /= np.sum(pzcx,axis=0)[None,:]
 	pz = np.sum(pzcx * px[None,:],axis=1)
 	pzcy = pzcx@pxcy
 
@@ -436,7 +439,6 @@ def admmib_bayat(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 		new_pzcy = pzcy - arm_ss_pzcy * mean_grad_pzcy
 		
 		# step3: pz
-		
 		(mean_grad_pz,_) = bayat_pz_grad(pz,new_pzcx,_parm_mu_z)
 		mean_grad_pz/= beta
 		ss_pz = gd.validStepSize(pz,-mean_grad_pz,_ls_init,_bk_beta)
@@ -494,10 +496,10 @@ def ib_mv(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	pxcy = pxy*(1./py)[None,:]
 	# on IB, the initialization matters
 	# use random start
-	#sel_idx = rs.permutation(nx)
-	#pzcx[:nz,:] = pycx[:,sel_idx[:nz]]
+	sel_idx = rs.permutation(nx)
 	pzcx = rs.rand(nz,nx)
-	pzcx = pzcx * (1./np.sum(pzcx,axis=0))[None,:]
+	pzcx[:nz,:] = pycx[:,sel_idx[:nz]]
+	pzcx /= np.sum(pzcx,axis=0)[None,:]
 	pz = np.sum(pzcx*px[None,:],axis=1)
 	pzcy = pzcx@pxcy
 	# defined in global variables
@@ -592,10 +594,11 @@ def ib_drs(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	pxcy = pxy*(1./py)[None,:]
 	# on IB, the initialization matters
 	# use random start
-	#sel_idx = rs.permutation(nx)
-	#pzcx[:nz,:] = pycx[:,sel_idx[:nz]]
+	sel_idx = rs.permutation(nx)
 	pzcx = rs.rand(nz,nx)
-	pzcx = pzcx * (1./np.sum(pzcx,axis=0))[None,:]
+	pzcx[:nz,:] = pycx[:,sel_idx[:nz]]
+	
+	pzcx /= np.sum(pzcx,axis=0)[None,:]
 	pz= np.sum(pzcx * px[None,:],axis=1)
 	pzcy = pzcx@pxcy
 	# defined in global variables
@@ -701,10 +704,10 @@ def ib_drs_acc(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	# on IB, the initialization matters
 	# use random start
 	
+	sel_idx = rs.permutation(nx)
 	pzcx = rs.rand(nz,nx)
-	#sel_idx = rs.permutation(nx)
-	#pzcx[:nz,:] = pycx[:,sel_idx[:nz]]
-	pzcx = pzcx * (1./np.sum(pzcx,axis=0))[None,:]
+	pzcx[:nz,:] = pycx[:,sel_idx[:nz]]
+	pzcx /= np.sum(pzcx,axis=0)[None,:]
 	pz = np.sum(pzcx * px[None,:],axis=1)
 	pzcy = pzcx@pxcy
 	# defined in global variables
@@ -732,8 +735,6 @@ def ib_drs_acc(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	flag_valid = False
 	itcnt = 0
 	while itcnt< max_iter:
-		#print("iteration {}".format(itcnt))
-		#print(pzcx)
 		itcnt+=1
 		'''
 		if itcnt == ls_schedule[ls_idx][0]:
@@ -794,12 +795,6 @@ def ib_drs_acc(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 			pzcx = new_pzcx
 			pz = new_pz
 			pzcy = new_pzcy
-	'''
-	debug_errz = np.sum(new_pzcx*px[None,:],axis=1)-pz
-	debug_errzy= new_pzcx@pxcy - pzcy
-	print(0.5*np.sum(np.fabs(debug_errz)))
-	print(0.5*np.sum(np.fabs(debug_errzy),axis=0))
-	'''
 	mixz = ut.calc_mi(pzcx,px)
 	miyz = ut.calc_mi(pzcy,py)
 	return {'prob_zcx':pzcx,'prob_z':pz,'prob_zcy':pzcy,
@@ -822,10 +817,10 @@ def ib_drs_mark(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	pxcy = pxy*(1./py)[None,:]
 	# on IB, the initialization matters
 	# use random start
-	#sel_idx = rs.permutation(nx)
-	#pzcx[:nz,:] = pycx[:,sel_idx[:nz]]
+	sel_idx = rs.permutation(nx)
 	pzcx = rs.rand(nz,nx)
-	pzcx = pzcx * (1./np.sum(pzcx,axis=0))[None,:]
+	pzcx[:nz,:] = pycx[:,sel_idx[:nz]]
+	pzcx /= np.sum(pzcx,axis=0)[None,:]
 	pz = np.sum(pzcx * px[None,:],axis=1)
 	pzcy = pzcx@pxcy
 	# defined in global variables
@@ -836,11 +831,9 @@ def ib_drs_mark(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	dual_drs_z = np.zeros((nz,))
 	# using the objects
 	grad_pz_obj = ent.getDrsmarkGradObjPz(beta,px,pen_c)
-	grad_pzcy_obj = ent.getDrsmarkGradObjPzcy(py,pxcy,pen_c)
-	grad_pzcx_obj = ent.getDrsmarkGradObjPzcx(beta,px,pxcy,pen_c)
+	grad_pzcx_obj = ent.getDrsmarkGradObjPzcx(beta,px,py,pxcy,pycx,pen_c)
 	func_pz_obj = ent.getDrsmarkFuncObjPz(beta,px,pen_c)
-	func_pzcy_obj = ent.getDrsmarkFuncObjPzcy(py,pxcy,pen_c)
-	func_pzcx_obj = ent.getDrsmarkFuncObjPzcx(beta,px,pxcy,pen_c)
+	func_pzcx_obj = ent.getDrsmarkFuncObjPzcx(beta,px,py,pxcy,pycx,pen_c)
 	# ready to start
 	flag_valid = False
 	itcnt = 0
@@ -853,9 +846,13 @@ def ib_drs_mark(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 		ss_z = gd.validStepSize(pz,-grad_z,_ls_init,_bk_beta)
 		if ss_z == 0:
 			break
+		#arm_ss_z = gd.armijoStepSize(pz,-grad_z,ss_z,_bk_beta,1e-4,func_pz_obj,grad_pz_obj,
+		#							**{'pzcx':pzcx,'mu_z':dual_drs_z},)
 		new_pz = pz - grad_z * ss_z
+		#if arm_ss_z == 0:
+		#	arm_ss_z = ss_z
+		#new_pz = pz - grad_z * arm_ss_z
 		# dual ascend
-		err_z = pz
 		dual_z = dual_drs_z + pen_c * (new_pz - np.sum(pzcx*px[None,:],axis=1))
 		# grad_x
 		(grad_x,_) = grad_pzcx_obj(pzcx,pz,dual_z)
@@ -863,11 +860,17 @@ def ib_drs_mark(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 		if ss_x == 0:
 			break
 		new_pzcx = pzcx - ss_x * grad_x
+		#arm_ss_x = gd.armijoStepSize(pzcx,-grad_x,ss_x,_bk_beta,1e-4,func_pzcx_obj,grad_pzcx_obj,
+		#							**{'pz':new_pz,'mu_z':dual_z})
+		#if arm_ss_x == 0:
+		#	arm_ss_x = ss_x
+		#new_pzcx = pzcx - arm_ss_x * grad_x
 		# convergence conditions
 		errz = new_pz - np.sum(new_pzcx * px[None,:],axis=1)
-		dtv=  np.sum(np.fabs(errz))
-		if dtv <= conv_thres:
+		dtv=  0.5*np.sum(np.fabs(errz))
+		if np.all(np.array(dtv < conv_thres)):
 			flag_valid = True
+			break
 		else:
 			pzcx = new_pzcx
 			pz = new_pz

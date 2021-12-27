@@ -88,7 +88,7 @@ def getFigLabel(**kwargs):
 		return 'IB-gd'
 	elif method in ['bayat','mv']:
 		return r"{}, $c={:}$".format(method,kwargs['penalty'])
-	elif method in ['drs','drs_acc','drs_mark']
+	elif method in ['drs','drs_acc','drs_mark']:
 		return r"{}, $c={:}, \alpha={:}$".format(kwargs['penalty'],kwargs['relax'])
 	elif method == 'dev':
 		return r"ours, $c={:}, \omega={:}$".format(kwargs['penalty'],kwargs['omega'])
