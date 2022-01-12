@@ -23,7 +23,7 @@ datasetlist    = dt.getDatasetList()
 parser = argparse.ArgumentParser()
 parser.add_argument("method",type=str,choices=available_algs,help="select the method")
 parser.add_argument('output',type=str,help='specify the name of the directory to save results')
-parser.add_argument('-dataset',type=str,choices=datasetlist,default='synWu',help='select the dataset')
+parser.add_argument('-dataset',type=str,choices=datasetlist,default='synMy',help='select the dataset')
 parser.add_argument("-minbeta",type=float,help='the minimum beta to sweep',default=1.0)
 parser.add_argument("-maxbeta",type=float,help='the maximum beta to sweep',default=10.0)
 parser.add_argument('-numbeta',type=int,help='the geometric spacing between beta_min and beta_max',default=16)
@@ -35,8 +35,9 @@ parser.add_argument('-thres',type=float,help='convergence threshold',default=1e-
 parser.add_argument('-sinit',type=float,help='Initial step size for line search',default=0.5)
 parser.add_argument('-sscale',type=float,help='Step size line search scaling',default=0.25)
 parser.add_argument('-seed',type=int,help='Random seed for reproduction',default=None)
-parser.add_argument('-maxiter',type=int,help='The maximum number of iteration per run',default=50000)
+parser.add_argument('-maxiter',type=int,help='The maximum number of iteration per run',default=25000)
 parser.add_argument("-v",'--verbose',help='printing the log and parameters along the execution',action='count',default=0)
+parser.add_argument("-s",'--sound',help='remind the end of program by a sinewave sound',action='count',default=0)
 
 
 args = parser.parse_args()
@@ -104,3 +105,8 @@ with open(os.path.join(d_save_dir,'arguments.pkl'),'wb') as fid:
 	pickle.dump(argdict,fid)
 with open(os.path.join(d_save_dir,'sysParams.pkl'),'wb') as fid:
 	pickle.dump(_sys_parms,fid)
+
+if args.sound:
+	duration = 1 # seconds
+	freq= 440 #khz
+	os.system('play -nq -t alsa synth {} sine {}'.format(duration,freq))

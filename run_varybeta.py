@@ -13,6 +13,7 @@ import myutils as ut
 import myentropy as ent
 import graddescent as gd
 import pprint
+from scipy.io import savemat
 
 d_base = os.getcwd()
 available_algs = ut.getAlgList(mode='penalty')
@@ -36,6 +37,7 @@ parser.add_argument('-sinit',type=float,help='Initial step size for line search'
 parser.add_argument('-sscale',type=float,help='Step size line search scaling',default=0.25)
 parser.add_argument('-seed',type=int,help='Random seed for reproduction',default=None)
 parser.add_argument('-maxiter',type=int,help='The maximum number of iteration per run',default=25000)
+parser.add_argument('-convrate',type=float,help='target convergence rate',default=0.95)
 parser.add_argument("-v",'--verbose',help='printing the log and parameters along the execution',action='count',default=0)
 
 
@@ -51,6 +53,7 @@ _sys_parms = {
 	'breg_omega'        : args.omega,
 	'rand_seed'         : args.seed,
 	'relax_coeff'       : args.relax,
+	'conv_rate'         : args.convrate,
 }
 
 if args.verbose:
@@ -58,61 +61,88 @@ if args.verbose:
 
 
 d_beta_range = np.geomspace(args.minbeta,args.maxbeta,num=args.numbeta)
-d_penalty_range = np.arange(args.minpenalty,args.maxpenalty,args.steppenalty)
+d_penalty_range = np.arange(args.minpenalty,args.maxpenalty,args.steppenalty).astype('float32')
 d_pxy_info = dt.datasetSelect(args.dataset)
 d_alg = alg.selectAlg(args.method)
 
-def runSim(ibalg,betarange,pxy,nrun,**kwargs):
+def runSim(ibalg,betarange,penalty_range,pxy,nrun,**kwargs):
 	status_template = kwargs['status_tex']
+	rate_thres = kwargs['conv_rate']
 	result_all = []
 	time_start = time.time()
+	# start with a small penalty coefficient, stop until reaching the first case with rate > thres
 	for bidx,beta in enumerate(betarange):
-		algargs = {'beta':beta,'qlevel':pxy.shape[1],**kwargs,}
+		pen_idx_cnt = 0
+		tmp_penalty = penalty_range[pen_idx_cnt]
+		algargs = {'beta':beta,'qlevel':pxy.shape[1],'penalty_coeff':tmp_penalty,**kwargs,}
 		ut.checkAlgArgs(**algargs)
 		tmp_status = status_template.format(**algargs)
 		tmp_result = []
 		time_per_run = time.time()
 		conv_cnt = 0
-		for it in range(nrun):
-			print('\rCurrent status: {}{:>6.2f}% ({:>5}/{:>5} iterations)'.format(
-				tmp_status,100*it/nrun,it,nrun),end='',flush=True)
-			ib_res = ibalg(**{'pxy':pxy,**algargs})
+		run_cnt = 0
+		early_stop_limit = int(nrun*( 1-rate_thres)) # if accumulated x tiems ... consider failed
+		itcnt = 0
+		while True:
+			itcnt += 1
+			print('\rCurrent status: {}{:>5}/{:>5}, {:>5} runs)'.format(
+				tmp_status,conv_cnt,nrun,itcnt),end='',flush=True)
+			ib_res = ibalg(**{'pxy':pxy,'penalty_coeff':tmp_penalty,**algargs})
+			run_cnt +=1 
 			conv_cnt += int(ib_res['valid'])
-			tmp_result.append(ib_res)
-		time_per_run = (time.time()-time_per_run)/nrun
-		avg_conv_rate= conv_cnt / nrun
-		print('\r{:<200}'.format(tmp_status+'complete'),end='\r',flush=True)
-		result_all.append({'beta':beta,'result':tmp_result,'avg_time':time_per_run,'avg_conv':avg_conv_rate}) 
-	print(' '*200+'\r',end='',flush=True)
+			if (run_cnt - conv_cnt) >early_stop_limit:
+				tmp_result = []
+				conv_cnt = 0
+				run_cnt = 0
+				pen_idx_cnt+=1
+				if pen_idx_cnt<len(penalty_range):
+					tmp_penalty = penalty_range[pen_idx_cnt]
+					algargs['penalty_coeff'] = tmp_penalty
+					tmp_status = status_template.format(**algargs)
+				else:
+					break
+			if ib_res['valid']:
+				tmp_result.append(ib_res)
+			if run_cnt == nrun:
+				# successfully reach the targeted iterations
+				break
+		if conv_cnt/nrun >= rate_thres:
+			print('\r{:<200}'.format(tmp_status+'complete, min_pen:{:>5.4f}'.format(tmp_penalty)),end='\r',flush=True)	
+			result_all.append({'beta':beta,'result':tmp_result,'min_penc':tmp_penalty}) 
+		else:
+			print('\r{:<200}'.format(tmp_status+'failed'),end='\r',flush=True)
+	print(' '*os.get_terminal_size().columns+'\r',end='',flush=True)
 	print('time elapsed: {:>16.8f} seconds'.format(time.time()-time_start))
 	return result_all
 # main loop
 
 d_exp_dir = os.path.join(d_base,args.output)# this is the main experiment folder
 # avoid duplicate 
+
+
+
+# prepare the directory
+# the folder must not exist
+#tmp_save_dir = os.path.join(d_exp_dir,tmp_dir_name)
+# create the corresponding experiment result folder
+#os.makedirs(tmp_save_dir,exist_ok=True)
+tmp_status   = ut.genStatus(**argdict)
+tmp_sys_dict = {'status_tex':tmp_status, **_sys_parms}
+result_all = runSim(d_alg,d_beta_range,d_penalty_range,d_pxy_info['pxy'],args.ntime,**tmp_sys_dict)
+print('beta,min_penc')
+for item in result_all:
+	print('{},{}'.format(item['beta'],item['min_penc']))
+
 try:
 	os.makedirs(d_exp_dir,exist_ok=False)
 except:
 	sys.exit("The folder already exists, please change the output name:{}".format(d_exp_dir))
-
-for pen in d_penalty_range:
-	# prepare the directory
-	tmp_dir_name = ut.genExpName(**{'penalty':pen,**argdict})
-	tmp_status   = ut.genStatus(**{'penalty':pen,**argdict})
-	# the folder must not exist
-	tmp_save_dir = os.path.join(d_exp_dir,tmp_dir_name)
-	# create the corresponding experiment result folder
-	os.makedirs(tmp_save_dir,exist_ok=True)
-	tmp_sys_dict = {'penalty_coeff':pen,'status_tex':tmp_status, **_sys_parms}
-	result_all = runSim(d_alg,d_beta_range,d_pxy_info['pxy'],args.ntime,**tmp_sys_dict)
-
-	# saving the results to experiment folder
-	d_file_name = ut.genOutName(**argdict) + '.pkl'
-	print('saving the result to:{}/{}\n'.format(tmp_save_dir,d_file_name))
-	with open(os.path.join(tmp_save_dir,d_file_name),'wb') as fid:
-		pickle.dump(result_all,fid)
-	with open(os.path.join(tmp_save_dir,'arguments.pkl'),'wb') as fid:
-		pickle.dump(argdict,fid)
-	with open(os.path.join(tmp_save_dir,'sysParams.pkl'),'wb') as fid:
-		pickle.dump({'penalty_coeff':pen, **_sys_parms},fid)
-
+# saving the results to experiment folder
+d_file_name = ut.genOutName(**argdict) + '.pkl'
+print('saving the result to:{}/{}\n'.format(tmp_exp_dir,d_file_name))
+with open(os.path.join(tmp_exp_dir,d_file_name),'wb') as fid:
+	pickle.dump(result_all,fid)
+with open(os.path.join(tmp_exp_dir,'arguments.pkl'),'wb') as fid:
+	pickle.dump(argdict,fid)
+with open(os.path.join(tmp_exp_dir,'sysParams.pkl'),'wb') as fid:
+	pickle.dump(_sys_parms,fid)

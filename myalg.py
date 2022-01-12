@@ -578,6 +578,7 @@ def ib_mv(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 			'niter':itcnt,'IXZ':mixz,'IYZ':miyz,'valid':flag_valid}
 
 def ib_drs(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
+	_record_flag= kwargs.get('record',False)
 	_bk_beta = kwargs['backtracking_beta']
 	_ls_init = kwargs['line_search_init']
 	# learning rate scheduler
@@ -597,7 +598,6 @@ def ib_drs(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	sel_idx = rs.permutation(nx)
 	pzcx = rs.rand(nz,nx)
 	pzcx[:nz,:] = pycx[:,sel_idx[:nz]]
-	
 	pzcx /= np.sum(pzcx,axis=0)[None,:]
 	pz= np.sum(pzcx * px[None,:],axis=1)
 	pzcy = pzcx@pxcy
@@ -620,15 +620,19 @@ def ib_drs(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	# ready to start
 	flag_valid = False
 	itcnt = 0
+	record_lval = np.zeros(1)
+	if _record_flag:
+		record_lval= np.zeros(max_iter)
+	gamma = 1/beta
 	while itcnt< max_iter:
 		itcnt+=1
-		'''
-		if itcnt == ls_schedule[ls_idx][0]:
-			_ls_init = ls_schedule[ls_idx][1]
-			ls_idx += 1
-			if ls_idx == len(ls_schedule):
-				ls_idx -=1 # stay at the end....
-		'''
+		# (gamma-1)H(Z)-gamma H(Z|X)+H(Z|Y)
+		errz =  np.sum(pzcx*px[None,:],axis=1)-pz
+		errzy = pzcx@pxcy - pzcy
+		record_lval[itcnt % len(record_lval)] = (1-gamma)*np.sum(pz*np.log(pz)) +gamma *np.sum(pzcx*px[None,:]*np.log(pzcx))\
+												-np.sum(pzcy*py[None,:]*np.log(pzcy))+np.sum(dual_z*errz)\
+												+0.5*pen_c*(np.linalg.norm(errz)**2) + np.sum(dual_zy*errzy)\
+												+0.5*pen_c*(np.linalg.norm(errzy)**2)
 		# update the str cvx part first
 		(grad_x,_) = grad_pzcx_obj(pzcx,pz,pzcy,dual_z,dual_zy)
 		ss_x= gd.validStepSize(pzcx,-grad_x,_ls_init,_bk_beta)
@@ -683,8 +687,11 @@ def ib_drs(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	'''
 	mixz = ut.calc_mi(pzcx,px)
 	miyz = ut.calc_mi(pzcy,py)
-	return {'prob_zcx':pzcx,'prob_z':pz,'prob_zcy':pzcy,
+	outputdict = {'prob_zcx':pzcx,'prob_z':pz,'prob_zcy':pzcy,
 			'niter':itcnt,'IXZ':mixz,'IYZ':miyz,'valid':flag_valid}
+	if _record_flag:
+		outputdict['val_record'] = record_lval[:itcnt]
+	return outputdict
 
 def ib_drs_acc(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	_bk_beta = kwargs['backtracking_beta']
@@ -801,6 +808,7 @@ def ib_drs_acc(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 			'niter':itcnt,'IXZ':mixz,'IYZ':miyz,'valid':flag_valid}
 
 def ib_drs_mark(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
+	_record_flag= kwargs.get('record',False)
 	_bk_beta = kwargs['backtracking_beta']
 	_ls_init = kwargs['line_search_init']
 	# learning rate scheduler
@@ -814,7 +822,7 @@ def ib_drs_mark(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	py = np.sum(pxy,axis=0)
 	py = py/np.sum(py)
 	pycx = np.transpose((1./px)[:,None]*pxy)
-	pxcy = pxy*(1./py)[None,:]
+	pxcy = pxy/py[None,:]
 	# on IB, the initialization matters
 	# use random start
 	sel_idx = rs.permutation(nx)
@@ -822,7 +830,8 @@ def ib_drs_mark(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	pzcx[:nz,:] = pycx[:,sel_idx[:nz]]
 	pzcx /= np.sum(pzcx,axis=0)[None,:]
 	pz = np.sum(pzcx * px[None,:],axis=1)
-	pzcy = pzcx@pxcy
+
+	#pzcy = pzcx@pxcy
 	# defined in global variables
 	pen_c = kwargs['penalty_coeff']
 	drs_relax_coeff = kwargs['relax_coeff']
@@ -837,10 +846,20 @@ def ib_drs_mark(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	# ready to start
 	flag_valid = False
 	itcnt = 0
+	record_lval = np.zeros(1)
+	if _record_flag:
+		record_lval = np.zeros(max_iter)
+	gamma = 1/beta
 	while itcnt < max_iter:
+		# l = (gamma-1)H(Z) -gammaH(Z|X) + H(Z|Y)+<nu,err> +0.5|err|^2
+		errz = pz - np.sum(pzcx*px[None,:],axis=1) # this is right
+		pzcy = pzcx @ pxcy
+		record_lval[itcnt % len(record_lval)] = (1-gamma)*np.sum(pz*np.log(pz))+gamma*np.sum(pzcx*px[None,:]*np.log(pzcx))\
+											    -np.sum( pzcy*py[None,:]*np.log(pzcy))+np.sum(dual_z*errz)\
+											    +0.5*pen_c*(np.linalg.norm(errz)**2)
 		itcnt +=1
 		# relax step
-		dual_drs_z = dual_z - (1-drs_relax_coeff)*pen_c*(pz - np.sum(pzcx*px[None,:],axis=1))
+		dual_drs_z = dual_z - (1-drs_relax_coeff)*pen_c*(errz)
 		# grad z
 		(grad_z,_) = grad_pz_obj(pz,pzcx,dual_drs_z)
 		ss_z = gd.validStepSize(pz,-grad_z,_ls_init,_bk_beta)
@@ -877,5 +896,8 @@ def ib_drs_mark(pxy,qlevel,conv_thres,beta,max_iter,**kwargs):
 	pzcy = pzcx @ pxcy
 	mixz = ut.calc_mi(pzcx,px)
 	miyz = ut.calc_mi(pzcy,py)
-	return {'prob_zcx':pzcx,'prob_z':pz,'prob_zcy':pzcy,
+	outputdict = {'prob_zcx':pzcx,'prob_z':pz,'prob_zcy':pzcy,
 			'niter':itcnt,'IXZ':mixz,'IYZ':miyz,'valid':flag_valid}
+	if _record_flag:
+		outputdict['val_record'] = record_lval[:itcnt]
+	return outputdict

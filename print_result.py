@@ -33,7 +33,9 @@ fs_s = {
 	'leg_fs'  : 14,
 }
 
-penalty_methods = ['dev','sec','bayat']
+penalty_methods = ['dev','sec','bayat','drs','drs_mark']
+
+
 
 def extractData(results):
 	res_hdr = ['IXZ','IYZ','niter','valid']
@@ -95,10 +97,11 @@ def readFolder(filedir):
 	px = np.sum(d_pxy,axis=1)
 	enthy = np.sum(-py*np.log(py)) # nats, convert later
 	mixy = np.sum(d_pxy*np.log(d_pxy/py[None,:]/px[:,None]))
+	#print('DEBUG',arguments)
 	tmpdict = {
 		'data':results, 'pxy':d_pxy,'mixy':mixy,'beta_range':beta_range,
 		'method':arguments['method'],'ntime':arguments['ntime'],
-		'penalty':penalty,'omega':arguments['omega'],
+		'penalty':penalty,'omega':arguments['omega'],'relax':arguments['relax'],
 		'thres':arguments['thres'],'dataset':arguments['dataset'],'output':arguments['output'],
 	}
 	return tmpdict
@@ -146,6 +149,8 @@ def convResult(filedir):
 	if method == 'dev':
 		out_dict['omega'] = readout['omega']
 	elif method in penalty_methods:
+		if method in ['drs','drs_mark']:
+			out_dict['relax'] = readout['relax']
 		pass
 	else:
 		sys.exit("fatal error, the method does not belong to penalty methods")
@@ -260,7 +265,6 @@ if args.conv:
 			betas  = one_conv['beta']
 			percent= one_conv['percent']
 			penalty= one_conv['penalty']
-			#print(one_conv)
 			#{'beta': array([5.5, 6. ]), 'percent': array([[5.5, 0. ],[6. , 0. ]]), 'method': 'bayat', 'penalty': 80.0}
 			if not conv_collect.get(method,False):
 				conv_collect[method] = {}

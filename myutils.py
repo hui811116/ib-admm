@@ -56,6 +56,7 @@ def genExpName(**kwargs):
 	elif method in ['drs','drs_acc','drs_mark']:
 		penalty = '{:.2f}'.format(kwargs['penalty'])
 		relax   = '{:.2f}'.format(kwargs['relax'])
+		return '{}_{}_r{}_c{}'.format(method,dataset,str(relax),str(penalty))
 	elif method in ['gd','orig']:
 		return '{}_{}_exp'.format(method,dataset)
 	else:
@@ -65,16 +66,16 @@ def genStatus(**kwargs):
 	method = kwargs['method']
 	dataset = kwargs['dataset']
 	if method in ['alm','sec','dev']:
-		penalty = '{:.2f}'.format(kwargs['penalty'])
-		omega = '{:.2f}'.format(kwargs['omega'])
+		#penalty = '{:.2f}'.format(kwargs['penalty'])
+		#omega = '{:.2f}'.format(kwargs['omega'])
 		return 'method:'+method+'---'+'beta,{beta:>6.3f}, penalty, {penalty_coeff:>6.2f}, omega, {breg_omega:>6.2f}, Progress:'
-	elif method in ['bayat','mv','drs','drs_acc']:
-		penalty = '{:.2f}'.format(kwargs['penalty'])
+	elif method in ['bayat','mv']:
+		#penalty = '{:.2f}'.format(kwargs['penalty'])
 		return 'method:'+method+'---'+'beta,{beta:>6.3f}, penalty, {penalty_coeff:>6.2f}, Progress:'
 	elif method in ['drs','drs_mark','drs_acc']:
-		penalty = '{:.2f}'.format(kwargs['penalty'])
-		relax   = '{:.2f}'.format(kwargs['relax'])
-		return 'method:'+method+'---'+'beta,{beta:>6.3f}, penalty {penalty_coeff:>6.2f}, relax, {relax_coeffi:>6.2f}, Progress:'
+		#penalty = '{:.2f}'.format(kwargs['penalty'])
+		#relax   = '{:.2f}'.format(kwargs['relax'])
+		return 'method:'+method+'---'+'beta,{beta:>6.3f}, penalty {penalty_coeff:>6.2f}, relax, {relax_coeff:>6.2f}, Progress:'
 	elif method in ['gd','orig']:
 		return 'method:'+method+'---'+'beta,{beta:>6.3f}, Progress:'
 	else:
@@ -89,7 +90,7 @@ def getFigLabel(**kwargs):
 	elif method in ['bayat','mv']:
 		return r"{}, $c={:}$".format(method,kwargs['penalty'])
 	elif method in ['drs','drs_acc','drs_mark']:
-		return r"{}, $c={:}, \alpha={:}$".format(kwargs['penalty'],kwargs['relax'])
+		return r"{}, $c={:}, \alpha={:}$".format(method,kwargs['penalty'],kwargs['relax'])
 	elif method == 'dev':
 		return r"ours, $c={:}, \omega={:}$".format(kwargs['penalty'],kwargs['omega'])
 
